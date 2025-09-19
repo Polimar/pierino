@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:geometra2024@db:5432/geometra_app
+      - OLLAMA_ENDPOINT=http://ollama:11434
+      - JWT_SECRET=your_super_secret_jwt_key_change_in_production
+      - JWT_REFRESH_SECRET=your_super_secret_refresh_key_change_in_production
+      - WHATSAPP_SESSION_PATH=/app/data/whatsapp_session
+      - UPLOAD_PATH=/app/data/uploads
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - db
+      - ollama
+      - redis
+    volumes:
+      - app_data:/app/data
+    restart: unless-stopped
+    networks:
+      - geometra_network
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: geometra_app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: geometra2024
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - geometra_network
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    networks:
+      - geometra_network
+    command: >
+      sh -c "ollama serve &
+             sleep 30 &&
+             ollama pull llama3.1 &&
+             ollama pull mistral &&
+             wait"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - geometra_network
+    command: redis-server --appendonly yes
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - geometra_network
+
+volumes:
+  postgres_data:
+  ollama_data:
+  redis_data:
+  app_data:
+
+networks:
+  geometra_network:
+    driver: bridge

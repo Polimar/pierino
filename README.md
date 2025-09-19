@@ -1,5 +1,65 @@
-## Descrizione del Progetto
-Sviluppa un'applicazione web fullstack per la gestione completa della segreteria di uno studio di geometra con integrazione WhatsApp nativa e gestione email automatica.
+# Geometra Studio - Gestionale Completo
+
+## 🏗️ Descrizione del Progetto
+
+Applicazione web fullstack per la gestione completa della segreteria di uno studio di geometra con integrazione WhatsApp nativa, AI assistente locale e gestione email automatica.
+
+### ✨ Caratteristiche Principali
+
+- 🔐 **Autenticazione JWT** con ruoli multipli
+- 👥 **Gestione Clienti** completa con CRUD
+- 📋 **Gestione Pratiche** con stati e priorità
+- 💬 **WhatsApp Integrato** con supporto multimediale
+- 🤖 **AI Assistente Locale** con Ollama
+- 📧 **Email Automatica** con template
+- 📊 **Dashboard Real-time** con notifiche
+- 🏗️ **Deployment Ubuntu** con Docker
+
+## 🚀 Quick Start
+
+### Installazione su Ubuntu Server
+
+```bash
+# Download e setup automatico
+wget https://raw.githubusercontent.com/your-repo/geometra-webapp/main/setup.sh
+chmod +x setup.sh
+sudo ./setup.sh
+```
+
+### Sviluppo Locale
+
+```bash
+# Clone del repository
+git clone https://github.com/your-repo/geometra-webapp.git
+cd geometra-webapp
+
+# Setup ambiente
+cp env.example .env
+npm run install:all
+
+# Avvia database
+docker-compose up -d db redis ollama
+
+# Setup database
+cd backend && npx prisma migrate dev && npx prisma db seed
+
+# Avvia sviluppo
+npm run dev
+```
+
+## 🔑 Credenziali Demo
+
+Dopo l'installazione, utilizza queste credenziali:
+
+- **Admin**: `admin@geometra.com` / `password123`
+- **Geometra**: `geometra@geometra.com` / `password123`
+- **Segreteria**: `segreteria@geometra.com` / `password123`
+
+## 📱 Accesso
+
+- **Frontend**: http://localhost:5173 (dev) o http://your-server (prod)
+- **API**: http://localhost:3000/api
+- **Database UI**: http://localhost:3000/api/prisma-studio
 
 ## Stack Tecnologico Richiesto
 - **Frontend**: React.js con TypeScript, Tailwind CSS, Shadcn/UI
@@ -728,18 +788,212 @@ volumes:
 - [ ] Mobile responsive
 - [ ] Deploy production ready con tutti i servizi AI
 
+## 🛠️ Comandi Utili
+
+### Sviluppo
+```bash
+npm run dev              # Avvia frontend e backend
+npm run dev:backend      # Solo backend
+npm run dev:frontend     # Solo frontend
+npm run setup:dev        # Setup completo ambiente sviluppo
+```
+
+### Database
+```bash
+npm run prisma:migrate   # Esegui migrazioni
+npm run prisma:generate  # Genera client Prisma
+npm run prisma:studio    # Apri Prisma Studio
+npm run prisma:seed      # Popola con dati demo
+npm run prisma:reset     # Reset completo database
+```
+
+### Docker
+```bash
+npm run docker:up        # Avvia tutti i servizi
+npm run docker:down      # Ferma tutti i servizi
+npm run docker:build     # Build immagini
+npm run docker:logs      # Visualizza log
+npm run docker:db        # Solo database e cache
+```
+
+### Produzione
+```bash
+npm run build            # Build per produzione
+npm run start            # Avvia produzione
+npm run health           # Health check
+```
+
+## 📋 Status Sviluppo
+
+- ✅ **Setup Progetto** - Struttura completa frontend/backend
+- ✅ **Autenticazione JWT** - Login, ruoli, sicurezza
+- ✅ **Database Schema** - Prisma ORM completo
+- ✅ **CRUD Clienti** - Gestione completa clienti
+- ✅ **WhatsApp Integration** - Messaggi multimediali, AI
+- ✅ **AI Assistente** - Ollama locale + API esterne
+- ✅ **Docker Setup** - Deploy ready con tutti i servizi
+- ✅ **Ubuntu Deployment** - Script automatico + documentazione
+- 🔄 **CRUD Pratiche** - In sviluppo
+- 🔄 **Email System** - In pianificazione
+- 🔄 **Dashboard Real-time** - In pianificazione
+
+## 🏆 Funzionalità Implementate
+
+### ✅ Core System
+- Autenticazione JWT con ruoli multipli (Admin, Geometra, Segreteria)
+- Sistema di sicurezza avanzato con rate limiting
+- Database PostgreSQL con schema completo
+- API REST con validazione e error handling
+
+### ✅ Gestione Clienti
+- CRUD completo con paginazione e ricerca
+- Validazione dati completa (CF, P.IVA, telefoni)
+- Gestione note e documenti allegati
+- Contatori statistiche automatici
+
+### ✅ WhatsApp Business
+- Connessione nativa senza app esterne
+- Supporto messaggi multimediali (audio, immagini, video, documenti)
+- Associazione automatica messaggi-clienti
+- Creazione clienti da contatti WhatsApp
+- Storage sicuro media con organizzazione automatica
+
+### ✅ AI Assistente
+- **Ollama locale** (privacy-first) con modelli Llama 3.1 e Mistral
+- **API esterne opzionali**: OpenAI GPT-4, Anthropic Claude, Google Gemini
+- Analisi automatica messaggi WhatsApp (urgenza, sentiment, categoria)
+- Generazione risposte intelligenti contestuali
+- Classificazione automatica tipo pratiche
+- Sistema di fallback robusto locale → cloud
+
+### ✅ Infrastructure
+- **Docker Compose** completo con tutti i servizi
+- **Nginx reverse proxy** con SSL/TLS
+- **Redis** per caching e sessioni
+- **Backup automatici** database e dati
+- **Monitoring e logging** avanzato
+- **Health checks** integrati
+
+### ✅ Security & Performance
+- Headers di sicurezza con Helmet
+- Rate limiting differenziato per endpoint
+- Validazione input e sanitizzazione XSS
+- Compressione gzip e ottimizzazione assets
+- SSL/TLS con certificati auto-generati
+- Firewall configurato automaticamente
+
+## 🔧 Configurazione Avanzata
+
+### AI Provider Setup
+
+**Ollama (Locale - Default)**:
+```env
+OLLAMA_ENDPOINT=http://localhost:11434
+OLLAMA_MODEL=llama3.1
+OLLAMA_ENABLED=true
+```
+
+**OpenAI (Opzionale)**:
+```env
+OPENAI_API_KEY=your_api_key
+OPENAI_MODEL=gpt-4
+OPENAI_ENABLED=true
+```
+
+**Anthropic Claude (Opzionale)**:
+```env
+ANTHROPIC_API_KEY=your_api_key
+ANTHROPIC_MODEL=claude-3-sonnet
+ANTHROPIC_ENABLED=true
+```
+
+### Email Configuration
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+```
+
+### WhatsApp Business API
+```env
+WHATSAPP_SESSION_PATH=./data/whatsapp_session
+WHATSAPP_MEDIA_PATH=./data/uploads/whatsapp
+```
+
+## 📚 Documentazione
+
+- 📖 [Deployment Guide](./README_DEPLOYMENT.md) - Guida completa deployment Ubuntu
+- 🔧 [API Documentation](./backend/README.md) - Documentazione API complete
+- 🎨 [Frontend Guide](./frontend/README.md) - Guida sviluppo frontend
+- 🤖 [AI Integration](./docs/AI_SETUP.md) - Setup assistente AI
+
+## 🆘 Supporto e Troubleshooting
+
+### Problemi Comuni
+
+**WhatsApp non si connette**:
+```bash
+# Controlla log
+docker-compose logs app | grep WhatsApp
+
+# Reset sessione
+rm -rf data/whatsapp_session/*
+docker-compose restart app
+```
+
+**AI non risponde**:
+```bash
+# Test Ollama
+curl http://localhost:11434/api/tags
+
+# Verifica modelli
+docker-compose exec ollama ollama list
+```
+
+**Database errori**:
+```bash
+# Reset database
+npm run prisma:reset
+
+# Riapplica migrazioni
+npm run prisma:migrate
+```
+
+## 🚀 Roadmap
+
+### Prossime Release
+
+**v1.1 - Gestione Pratiche**:
+- CRUD completo pratiche con workflow
+- Sistema attività e timeline
+- Calcolo automatico compensi
+- Generazione documenti
+
+**v1.2 - Email Integration**:
+- Ricezione automatica email (IMAP)
+- Template email con AI
+- Associazione email-pratiche
+- Firma digitale
+
+**v1.3 - Dashboard Avanzata**:
+- Notifiche real-time con Socket.IO
+- Analytics e reporting
+- Calendario integrato
+- KPI e metriche
+
+**v1.4 - Mobile & Advanced AI**:
+- App mobile React Native
+- Riconoscimento vocale
+- OCR avanzato per documenti tecnici
+- Training personalizzato AI
+
+## 📄 Licenza
+
+MIT License - Vedi [LICENSE](./LICENSE) file per dettagli.
+
 ---
 
-**Nota**: Prioritizza l'integrazione WhatsApp e email nelle prime fasi di sviluppo in quanto sono funzionalità core del sistema. Implementa un sistema di logging robusto per debugging delle integrazioni esterne.
+**Sviluppato con ❤️ per modernizzare gli studi tecnici italiani**
 
----
-
-**Note Finali**: 
-- **Priorità Massima**: Integrazione WhatsApp con supporto completo multimediale (audio, immagini, documenti)
-- **AI Locale First**: Implementare prima Ollama locale per privacy e controllo, poi aggiungere API esterne come opzione
-- **Privacy by Design**: Tutti i dati sensibili devono essere processabili localmente senza inviarli a servizi esterni
-- **Performance AI**: Implementare caching intelligente e processing asincrono per mantenere l'app reattiva
-- **Fallback System**: Sistema di fallback robusto da AI locale a API esterne in caso di problemi
-- **User Training**: Interface per "addestrare" l'AI sulle specifiche dello studio (terminologia, procedure, template)
-- **Compliance**: Assicurarsi che la gestione dei dati rispetti GDPR e normative italiane sulla privacy
-- **Scalabilità**: Architettura preparata per gestire mig# Prompt per Applicazione Fullstack - Gestionale Studio Geometra
+*Versione 1.0.0 - Settembre 2024*

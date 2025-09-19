@@ -1,0 +1,408 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  password          String
+  role              Role     @default(SECRETARY)
+  firstName         String?
+  lastName          String?
+  isActive          Boolean  @default(true)
+  lastLogin         DateTime?
+  refreshToken      String?
+  passwordResetToken String?
+  passwordResetExpires DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  aiConversations   AIConversation[]
+  activities        Activity[]
+  notifications     Notification[]
+
+  @@map("users")
+}
+
+model Client {
+  id              String    @id @default(cuid())
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  whatsappNumber  String?   @unique
+  fiscalCode      String?   @unique
+  vatNumber       String?   @unique
+  address         String?
+  city            String?
+  province        String?
+  postalCode      String?
+  country         String?   @default("IT")
+  birthDate       DateTime?
+  birthPlace      String?
+  notes           String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  practices       Practice[]
+  appointments    Appointment[]
+  documents       Document[]
+  whatsappChats   WhatsappMessage[]
+  emails          Email[]
+  mediaFiles      MediaFile[]
+
+  @@map("clients")
+}
+
+model Practice {
+  id          String        @id @default(cuid())
+  title       String
+  type        PracticeType
+  status      PracticeStatus @default(PENDING)
+  priority    Priority      @default(MEDIUM)
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId    String
+  description String?
+  startDate   DateTime      @default(now())
+  dueDate     DateTime?
+  completedAt DateTime?
+  amount      Decimal?      @db.Decimal(10, 2)
+  paidAmount  Decimal?      @db.Decimal(10, 2) @default(0)
+  isPaid      Boolean       @default(false)
+  invoiceNumber String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  documents   Document[]
+  activities  Activity[]
+  mediaFiles  MediaFile[]
+  appointments Appointment[]
+
+  @@map("practices")
+}
+
+model WhatsappMessage {
+  id            String       @id @default(cuid())
+  messageId     String       @unique
+  client        Client?      @relation(fields: [clientId], references: [id])
+  clientId      String?
+  fromMe        Boolean      @default(false)
+  content       String
+  messageType   MessageType  @default(TEXT)
+  mediaUrl      String?
+  mediaPath     String?
+  mediaMimeType String?
+  transcription String?
+  ocrText       String?
+  aiAnalysis    String?
+  aiPriority    Priority?
+  isRead        Boolean      @default(false)
+  timestamp     DateTime
+  createdAt     DateTime     @default(now())
+
+  // Relations
+  mediaFiles    MediaFile[]
+
+  @@map("whatsapp_messages")
+}
+
+model Email {
+  id            String    @id @default(cuid())
+  messageId     String    @unique
+  client        Client?   @relation(fields: [clientId], references: [id])
+  clientId      String?
+  practice      Practice? @relation(fields: [practiceId], references: [id])
+  practiceId    String?
+  fromEmail     String
+  toEmail       String
+  ccEmail       String?
+  bccEmail      String?
+  subject       String
+  content       String
+  htmlContent   String?
+  isRead        Boolean   @default(false)
+  isSent        Boolean   @default(false)
+  sentAt        DateTime?
+  receivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  attachments   Document[]
+
+  @@map("emails")
+}
+
+model Document {
+  id            String    @id @default(cuid())
+  filename      String
+  originalName  String
+  mimeType      String
+  size          Int
+  path          String
+  url           String?
+  client        Client?   @relation(fields: [clientId], references: [id])
+  clientId      String?
+  practice      Practice? @relation(fields: [practiceId], references: [id])
+  practiceId    String?
+  email         Email?    @relation(fields: [emailId], references: [id])
+  emailId       String?
+  documentType  DocumentType @default(OTHER)
+  isPublic      Boolean   @default(false)
+  extractedText String?
+  aiTags        String[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("documents")
+}
+
+model MediaFile {
+  id            String           @id @default(cuid())
+  filename      String
+  originalName  String
+  mimeType      String
+  size          Int
+  path          String
+  url           String?
+  client        Client?          @relation(fields: [clientId], references: [id])
+  clientId      String?
+  practice      Practice?        @relation(fields: [practiceId], references: [id])
+  practiceId    String?
+  whatsappMsg   WhatsappMessage? @relation(fields: [whatsappMsgId], references: [id])
+  whatsappMsgId String?
+  transcription String?
+  ocrText       String?
+  aiTags        String[]
+  thumbnail     String?
+  duration      Int?
+  createdAt     DateTime         @default(now())
+
+  @@map("media_files")
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  title       String
+  description String?
+  client      Client            @relation(fields: [clientId], references: [id])
+  clientId    String
+  practice    Practice?         @relation(fields: [practiceId], references: [id])
+  practiceId  String?
+  startTime   DateTime
+  endTime     DateTime
+  status      AppointmentStatus @default(SCHEDULED)
+  location    String?
+  reminderSent Boolean          @default(false)
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("appointments")
+}
+
+model Activity {
+  id          String      @id @default(cuid())
+  practice    Practice    @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  practiceId  String
+  user        User        @relation(fields: [userId], references: [id])
+  userId      String
+  type        ActivityType
+  title       String
+  description String?
+  status      ActivityStatus @default(PENDING)
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("activities")
+}
+
+model AIConfiguration {
+  id              String     @id @default(cuid())
+  provider        AIProvider @default(OLLAMA)
+  ollamaModel     String?    @default("llama3.1")
+  ollamaEndpoint  String?    @default("http://localhost:11434")
+  openaiApiKey    String?
+  openaiModel     String?    @default("gpt-4")
+  anthropicApiKey String?
+  anthropicModel  String?    @default("claude-3-sonnet")
+  geminiApiKey    String?
+  geminiModel     String?    @default("gemini-pro")
+  isActive        Boolean    @default(true)
+  settings        Json?
+  maxTokens       Int?       @default(2048)
+  temperature     Float?     @default(0.7)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@map("ai_configurations")
+}
+
+model AIConversation {
+  id          String    @id @default(cuid())
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  title       String?
+  context     String?
+  messages    Json[]
+  summary     String?
+  tokenCount  Int?      @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("ai_conversations")
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  user        User             @relation(fields: [userId], references: [id])
+  userId      String
+  type        NotificationType
+  title       String
+  message     String
+  data        Json?
+  isRead      Boolean          @default(false)
+  priority    Priority         @default(MEDIUM)
+  expiresAt   DateTime?
+  createdAt   DateTime         @default(now())
+
+  @@map("notifications")
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// Enums
+enum Role {
+  ADMIN
+  GEOMETRA
+  SECRETARY
+}
+
+enum PracticeType {
+  CONDONO
+  SCIA
+  PERMESSO_COSTRUIRE
+  CATASTO
+  TOPOGRAFIA
+  APE
+  SANATORIA
+  AGIBILITA
+  VARIANTE
+  ACCATASTAMENTO
+  VOLTURA
+  VISURA
+  ALTRO
+}
+
+enum PracticeStatus {
+  PENDING
+  IN_PROGRESS
+  SUSPENDED
+  WAITING_DOCUMENTS
+  WAITING_APPROVAL
+  COMPLETED
+  ARCHIVED
+  CANCELLED
+}
+
+enum MessageType {
+  TEXT
+  AUDIO
+  IMAGE
+  VIDEO
+  DOCUMENT
+  LOCATION
+  CONTACT
+  STICKER
+}
+
+enum AIProvider {
+  OLLAMA
+  OPENAI
+  ANTHROPIC
+  GEMINI
+  AZURE_OPENAI
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum DocumentType {
+  CONTRACT
+  INVOICE
+  ESTIMATE
+  CERTIFICATE
+  PLAN
+  PHOTO
+  REPORT
+  CORRESPONDENCE
+  IDENTITY_DOCUMENT
+  CADASTRAL_DOCUMENT
+  OTHER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  DOCUMENT_REVIEW
+  SITE_VISIT
+  FILING
+  PAYMENT
+  FOLLOW_UP
+  OTHER
+}
+
+enum ActivityStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  PRACTICE_DEADLINE
+  APPOINTMENT_REMINDER
+  WHATSAPP_MESSAGE
+  EMAIL_RECEIVED
+  PAYMENT_DUE
+  DOCUMENT_EXPIRY
+  SYSTEM_ALERT
+  AI_SUGGESTION
+}
