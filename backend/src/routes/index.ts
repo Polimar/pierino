@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import authRoutes from './authRoutes';
 import clientRoutes from './clientRoutes';
+import practiceRoutes from './practiceRoutes';
 import whatsappRoutes from './whatsappRoutes';
+import emailRoutes from './emailRoutes';
 
 const router = Router();
 
@@ -19,6 +21,8 @@ router.get('/health', (req, res) => {
 // API routes
 router.use('/auth', authRoutes);
 router.use('/clients', clientRoutes);
+router.use('/practices', practiceRoutes);
 router.use('/whatsapp', whatsappRoutes);
+router.use('/emails', emailRoutes);
 
 export default router;
