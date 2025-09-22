@@ -226,3 +226,57 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+// Versione con i nuovi componenti (per riferimento)
+// import { DashboardStats, RecentActivities, UrgentActivities, QuickActions } from '@/components/dashboard';
+//
+// const dashboardStatsData = {
+//   totalClients: 142,
+//   activePractices: 58,
+//   whatsappMessages: 23,
+//   todayAppointments: 6,
+//   clientsChange: '+4.75%',
+//   practicesChange: '+2.15%',
+//   whatsappChange: '+1.25%',
+//   appointmentsChange: '+3.20%'
+// };
+//
+// const recentActivitiesData = [
+//   {
+//     id: '1',
+//     type: 'practice' as const,
+//     title: 'Nuova pratica SCIA',
+//     description: 'Mario Rossi',
+//     timeAgo: '2 ore fa',
+//     icon: '📋'
+//   },
+//   {
+//     id: '2',
+//     type: 'whatsapp' as const,
+//     title: 'Messaggio WhatsApp',
+//     description: 'Anna Verdi',
+//     timeAgo: '4 ore fa',
+//     icon: '💬'
+//   }
+// ];
+//
+// const urgentActivitiesData = [
+//   {
+//     id: '1',
+//     title: 'Scadenza pratica SCIA',
+//     description: 'Via Roma 123',
+//     priority: 'Alta' as const,
+//     dueDate: 'Domani',
+//     type: 'deadline' as const
+//   }
+// ];
+//
+// const quickActionsData = [
+//   {
+//     id: 'new-client',
+//     title: 'Nuovo Cliente',
+//     icon: '👤',
+//     color: 'blue',
+//     route: '/clients/new'
+//   }
+// ];

@@ -1,9 +1,8 @@
 import http from 'http';
-import config from '../config/env';
 
 const options = {
   host: 'localhost',
-  port: config.PORT,
+  port: 3000,
   path: '/api/health',
   timeout: 2000,
 };

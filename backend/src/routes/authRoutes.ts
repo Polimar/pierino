@@ -1,26 +1,33 @@
 import { Router } from 'express';
-import {
-  login,
-  register,
-  refreshToken,
-  logout,
-  getProfile,
-  changePassword,
-} from '../controllers/authController';
-import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
-// Public routes
-router.post('/login', login);
-router.post('/refresh', refreshToken);
+// POST /api/auth/login - Login utente
+router.post('/login', (req, res) => {
+  const { email, password } = req.body;
 
-// Protected routes
-router.post('/logout', authenticateToken, logout);
-router.get('/profile', authenticateToken, getProfile);
-router.post('/change-password', authenticateToken, changePassword);
+  // Demo login
+  if (email === 'admin@geometra.com' && password === 'password123') {
+    return res.json({
+      success: true,
+      data: {
+        user: {
+          id: '1',
+          email: 'admin@geometra.com',
+          role: 'ADMIN',
+          firstName: 'Admin',
+          lastName: 'Sistema'
+        },
+        accessToken: 'demo-access-token-123',
+        refreshToken: 'demo-refresh-token-456'
+      }
+    });
+  }
 
-// Admin only routes
-router.post('/register', authenticateToken, requireAdmin, register);
+  res.status(401).json({
+    success: false,
+    message: 'Credenziali non valide'
+  });
+});
 
 export default router;

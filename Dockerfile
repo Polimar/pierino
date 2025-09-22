@@ -97,7 +97,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD sh -c "cd backend && ts-node --transpile-only --project tsconfig.json src/healthcheck-minimal.ts" || exit 1
+    CMD sh -c "cd backend && ts-node --transpile-only --project tsconfig.json src/healthcheck.ts" || exit 1
 
 # Avvia applicazione
-CMD ["sh", "-c", "cd backend && ts-node --transpile-only --project tsconfig.json src/server-minimal.ts"]
+CMD ["sh", "-c", "cd backend && ts-node --transpile-only --project tsconfig.json src/server.ts"]
