@@ -1,7 +1,7 @@
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { Request, Response, NextFunction } from 'express';
-import { createLogger } from '@/utils/logger';
+import { createLogger } from '../utils/logger';
 
 const logger = createLogger('Security');
 

@@ -13,10 +13,10 @@ import {
   markAsRead,
   analyzeMessage,
   generateResponse,
-} from '@/controllers/whatsappController';
-import { authenticateToken, requireAnyRole } from '@/middleware/auth';
-import { uploadLimiter, validateFileType } from '@/middleware/security';
-import config from '@/config/env';
+} from '../controllers/whatsappController';
+import { authenticateToken, requireAnyRole } from '../middleware/auth';
+import { uploadLimiter, validateFileType } from '../middleware/security';
+import config from '../config/env';
 
 const router = Router();
 

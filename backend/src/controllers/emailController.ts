@@ -1,7 +1,7 @@
 import { Response } from 'express';
-import { AuthRequest } from '@/middleware/auth';
-import emailService from '@/services/emailService';
-import { createLogger } from '@/utils/logger';
+import { AuthRequest } from '../middleware/auth';
+import emailService from '../services/emailService';
+import { createLogger } from '../utils/logger';
 
 const logger = createLogger('EmailController');
 

@@ -2,8 +2,8 @@ import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
 import { Role } from '@prisma/client';
-import config from '@/config/env';
-import { createLogger } from '@/utils/logger';
+import config from '../config/env';
+import { createLogger } from '../utils/logger';
 
 const logger = createLogger('SocketService');
 

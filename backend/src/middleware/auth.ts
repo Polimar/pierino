@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { Role } from '@prisma/client';
-import prisma from '@/config/database';
-import config from '@/config/env';
-import { createLogger } from '@/utils/logger';
+import prisma from '../config/database';
+import config from '../config/env';
+import { createLogger } from '../utils/logger';
 
 const logger = createLogger('AuthMiddleware');
 

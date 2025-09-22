@@ -6,8 +6,8 @@ import {
   updateClient,
   deleteClient,
   searchClients,
-} from '@/controllers/clientController';
-import { authenticateToken, requireAnyRole } from '@/middleware/auth';
+} from '../controllers/clientController';
+import { authenticateToken, requireAnyRole } from '../middleware/auth';
 
 const router = Router();
 

@@ -1,9 +1,9 @@
 import { Response } from 'express';
-import { AuthRequest } from '@/middleware/auth';
-import whatsappService from '@/services/whatsappService';
-import aiService from '@/services/aiService';
-import { createLogger } from '@/utils/logger';
-import { validateId } from '@/utils/validation';
+import { AuthRequest } from '../middleware/auth';
+import whatsappService from '../services/whatsappService';
+import aiService from '../services/aiService';
+import { createLogger } from '../utils/logger';
+import { validateId } from '../utils/validation';
 
 const logger = createLogger('WhatsAppController');
 

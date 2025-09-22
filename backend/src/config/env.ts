@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { createLogger } from '@/utils/logger';
+import { createLogger } from '../utils/logger';
 
 dotenv.config();
 
@@ -53,9 +53,9 @@ export const config = {
   IMAP_PORT: parseInt(process.env.IMAP_PORT || '993'),
 
   // WhatsApp
-  WHATSAPP_SESSION_PATH: process.env.WHATSAPP_SESSION_PATH || './data/whatsapp_session',
+  WHATSAPP_SESSION_PATH: process.env.WHATSAPP_SESSION_PATH || '../data/whatsapp_session',
   WHATSAPP_WEBHOOK_SECRET: process.env.WHATSAPP_WEBHOOK_SECRET || 'default-webhook-secret',
-  WHATSAPP_MEDIA_PATH: process.env.WHATSAPP_MEDIA_PATH || './data/uploads/whatsapp',
+  WHATSAPP_MEDIA_PATH: process.env.WHATSAPP_MEDIA_PATH || '../data/uploads/whatsapp',
 
   // AI Configuration
   OLLAMA_ENDPOINT: process.env.OLLAMA_ENDPOINT || 'http://localhost:11434',
@@ -82,7 +82,7 @@ export const config = {
   AI_RESPONSE_TIMEOUT: parseInt(process.env.AI_RESPONSE_TIMEOUT || '30000'),
 
   // Storage
-  UPLOAD_PATH: process.env.UPLOAD_PATH || './data/uploads',
+  UPLOAD_PATH: process.env.UPLOAD_PATH || '../data/uploads',
   MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE || '52428800'), // 50MB
   ALLOWED_FILE_TYPES: (process.env.ALLOWED_FILE_TYPES || 'pdf,doc,docx,jpg,jpeg,png,gif,mp3,wav,m4a,ogg').split(','),
 
@@ -91,7 +91,7 @@ export const config = {
 
   // Logging
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
-  LOG_FILE: process.env.LOG_FILE || './logs/app.log',
+  LOG_FILE: process.env.LOG_FILE || '../logs/app.log',
 
   // Monitoring
   ENABLE_METRICS: process.env.ENABLE_METRICS === 'true',

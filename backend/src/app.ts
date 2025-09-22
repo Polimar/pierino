@@ -4,17 +4,17 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 
-import config from '@/config/env';
-import { createLogger } from '@/utils/logger';
+import config from './config/env';
+import { createLogger } from './utils/logger';
 import { 
   securityHeaders, 
   generalLimiter, 
   authLimiter,
   sanitizeInput,
   requestLogger 
-} from '@/middleware/security';
-import { errorHandler, notFoundHandler } from '@/middleware/errorHandler';
-import routes from '@/routes';
+} from './middleware/security';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import routes from './routes';
 
 const logger = createLogger('App');
 

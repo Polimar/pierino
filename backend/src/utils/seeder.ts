@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
-import prisma from '@/config/database';
-import config from '@/config/env';
-import { createLogger } from '@/utils/logger';
+import prisma from '../config/database';
+import config from '../config/env';
+import { createLogger } from '../utils/logger';
 import { Role, PracticeType, PracticeStatus, Priority, AIProvider } from '@prisma/client';
 
 const logger = createLogger('Seeder');

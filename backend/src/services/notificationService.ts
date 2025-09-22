@@ -1,9 +1,9 @@
 import { NotificationType, Priority, Role } from '@prisma/client';
-import prisma from '@/config/database';
-import { createLogger } from '@/utils/logger';
-import socketService from './socketService';
-import emailService from './emailService';
-import whatsappService from './whatsappService';
+import prisma from '../config/database';
+import { createLogger } from '../utils/logger';
+import socketService from '../socketService';
+import emailService from '../emailService';
+import whatsappService from '../whatsappService';
 
 const logger = createLogger('NotificationService');
 

@@ -1,5 +1,5 @@
 import http from 'http';
-import config from '@/config/env';
+import config from '../config/env';
 
 const options = {
   host: 'localhost',

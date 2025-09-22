@@ -1,12 +1,12 @@
 import { createServer } from 'http';
 import app from './app';
-import config from '@/config/env';
-import { connectDB, disconnectDB } from '@/config/database';
-import { createLogger } from '@/utils/logger';
-import socketService from '@/services/socketService';
-import whatsappService from '@/services/whatsappService';
-import emailService from '@/services/emailService';
-import { seedDatabase } from '@/utils/seeder';
+import config from './config/env';
+import { connectDB, disconnectDB } from './config/database';
+import { createLogger } from './utils/logger';
+import socketService from './services/socketService';
+import whatsappService from './services/whatsappService';
+import emailService from './services/emailService';
+import { seedDatabase } from './utils/seeder';
 
 const logger = createLogger('Server');
 

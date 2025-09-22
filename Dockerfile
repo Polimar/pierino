@@ -17,19 +17,24 @@ RUN apk add --no-cache \
     freetype-dev \
     ffmpeg \
     tesseract-ocr \
-    tesseract-ocr-ita
+    curl
+
+# Installa il language pack italiano per Tesseract (ita)
+RUN mkdir -p /usr/share/tessdata && \
+    curl -fsSL -o /usr/share/tessdata/ita.traineddata \
+    https://github.com/tesseract-ocr/tessdata_best/raw/main/ita.traineddata
 
 WORKDIR /app
 
-# Copia package.json e installa dipendenze
+# Copia package.json e installa dipendenze (inclusi dev per build)
 COPY package*.json ./
 COPY backend/package*.json ./backend/
 COPY frontend/package*.json ./frontend/
 
-# Installa dipendenze
-RUN npm ci --only=production && \
-    cd backend && npm ci --only=production && \
-    cd ../frontend && npm ci --only=production
+# Installa dipendenze (dev incluse per poter buildare)
+RUN npm install && \
+    cd backend && npm install && \
+    cd ../frontend && npm install
 
 # Build stage
 FROM base AS builder
@@ -45,9 +50,6 @@ RUN cd backend && npx prisma generate
 # Build frontend
 RUN cd frontend && npm run build
 
-# Build backend
-RUN cd backend && npm run build
-
 # Production stage
 FROM node:18-alpine AS production
 
@@ -55,7 +57,6 @@ FROM node:18-alpine AS production
 RUN apk add --no-cache \
     ffmpeg \
     tesseract-ocr \
-    tesseract-ocr-ita \
     cairo \
     jpeg \
     pango \
@@ -63,15 +64,25 @@ RUN apk add --no-cache \
     giflib \
     pixman \
     libjpeg-turbo \
-    freetype
+    freetype \
+    curl
+
+# Installa il language pack italiano per Tesseract (ita)
+RUN mkdir -p /usr/share/tessdata && \
+    curl -fsSL -o /usr/share/tessdata/ita.traineddata \
+    https://github.com/tesseract-ocr/tessdata_best/raw/main/ita.traineddata
 
 WORKDIR /app
 
-# Copia solo i file necessari per produzione
-COPY --from=builder /app/backend/dist ./backend/dist
+# Installa ts-node per eseguire TypeScript direttamente
+RUN npm install -g ts-node
+
+# Copia i file necessari
 COPY --from=builder /app/backend/node_modules ./backend/node_modules
-COPY --from=builder /app/backend/prisma ./backend/prisma
 COPY --from=builder /app/backend/package*.json ./backend/
+COPY --from=builder /app/backend/src ./backend/src
+COPY --from=builder /app/backend/tsconfig.json ./backend/tsconfig.json
+COPY --from=builder /app/backend/prisma ./backend/prisma
 COPY --from=builder /app/frontend/dist ./frontend/dist
 
 # Crea directory per dati persistenti
@@ -86,7 +97,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node backend/dist/healthcheck.js || exit 1
+    CMD sh -c "cd backend && ts-node --transpile-only --project tsconfig.json src/healthcheck-minimal.ts" || exit 1
 
 # Avvia applicazione
-CMD ["node", "backend/dist/server.js"]
+CMD ["sh", "-c", "cd backend && ts-node --transpile-only --project tsconfig.json src/server-minimal.ts"]

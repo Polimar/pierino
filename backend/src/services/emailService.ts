@@ -3,10 +3,10 @@ import { Imap } from 'imap';
 import { EventEmitter } from 'events';
 import fs from 'fs';
 import path from 'path';
-import prisma from '@/config/database';
-import config from '@/config/env';
-import { createLogger } from '@/utils/logger';
-import aiService from './aiService';
+import prisma from '../config/database';
+import config from '../config/env';
+import { createLogger } from '../utils/logger';
+import aiService from '../aiService';
 
 const logger = createLogger('EmailService');
 

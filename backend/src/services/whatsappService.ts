@@ -3,9 +3,9 @@ import qrcode from 'qrcode';
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import prisma from '@/config/database';
-import config from '@/config/env';
-import { createLogger } from '@/utils/logger';
+import prisma from '../config/database';
+import config from '../config/env';
+import { createLogger } from '../utils/logger';
 import { MessageType, Priority } from '@prisma/client';
 
 const logger = createLogger('WhatsAppService');

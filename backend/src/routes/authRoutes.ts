@@ -6,8 +6,8 @@ import {
   logout,
   getProfile,
   changePassword,
-} from '@/controllers/authController';
-import { authenticateToken, requireAdmin } from '@/middleware/auth';
+} from '../controllers/authController';
+import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = Router();
 

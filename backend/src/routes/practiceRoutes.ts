@@ -6,8 +6,8 @@ import {
   updatePractice,
   deletePractice,
   getPracticeStats,
-} from '@/controllers/practiceController';
-import { authenticateToken, requireAnyRole } from '@/middleware/auth';
+} from '../controllers/practiceController';
+import { authenticateToken, requireAnyRole } from '../middleware/auth';
 
 const router = Router();
 

@@ -89,6 +89,7 @@ model Practice {
   activities  Activity[]
   mediaFiles  MediaFile[]
   appointments Appointment[]
+  emails       Email[]
 
   @@map("practices")
 }

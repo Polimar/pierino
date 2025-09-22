@@ -1,20 +1,20 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { Role } from '@prisma/client';
-import prisma from '@/config/database';
-import config from '@/config/env';
-import { createLogger } from '@/utils/logger';
+import prisma from '../config/database';
+import config from '../config/env';
+import { createLogger } from '../utils/logger';
 import { 
   generateTokens, 
   verifyRefreshToken, 
   AuthRequest 
-} from '@/middleware/auth';
+} from '../middleware/auth';
 import { 
   validateLoginInput, 
   validateRegisterInput,
   validatePasswordResetInput,
   validateChangePasswordInput 
-} from '@/utils/validation';
+} from '../utils/validation';
 
 const logger = createLogger('AuthController');
 

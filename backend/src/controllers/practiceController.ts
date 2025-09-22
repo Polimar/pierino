@@ -1,13 +1,13 @@
 import { Response } from 'express';
-import prisma from '@/config/database';
-import { createLogger } from '@/utils/logger';
-import { AuthRequest } from '@/middleware/auth';
+import prisma from '../config/database';
+import { createLogger } from '../utils/logger';
+import { AuthRequest } from '../middleware/auth';
 import {
   validateCreatePractice,
   validateUpdatePractice,
   validatePracticeQuery,
   validateId,
-} from '@/utils/validation';
+} from '../utils/validation';
 
 const logger = createLogger('PracticeController');
 

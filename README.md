@@ -57,9 +57,9 @@ Dopo l'installazione, utilizza queste credenziali:
 
 ## 📱 Accesso
 
-- **Frontend**: http://localhost:5173 (dev) o http://your-server (prod)
-- **API**: http://localhost:3000/api
-- **Database UI**: http://localhost:3000/api/prisma-studio
+- **Frontend**: http://localhost:5173 (dev) o https://your-domain.com (prod)
+- **API**: https://your-domain.com/api
+- **Database UI**: https://your-domain.com/api/prisma-studio
 
 ## Stack Tecnologico Richiesto
 - **Frontend**: React.js con TypeScript, Tailwind CSS, Shadcn/UI
@@ -552,7 +552,7 @@ WHATSAPP_MEDIA_PATH=./uploads/whatsapp
 
 # AI Configuration
 # Ollama (Locale - Default)
-OLLAMA_ENDPOINT=http://localhost:11434
+OLLAMA_ENDPOINT=http://ollama:11434
 OLLAMA_MODEL=llama3.1
 OLLAMA_ENABLED=true
 
@@ -586,8 +586,8 @@ ALLOWED_FILE_TYPES=pdf,doc,docx,jpg,png
 # App
 NODE_ENV=production
 PORT=3000
-CLIENT_URL=http://localhost:3000
-API_URL=http://localhost:3000/api
+CLIENT_URL=https://your-domain.com
+API_URL=https://your-domain.com/api
 ```
 
 ### Docker Setup
@@ -945,7 +945,7 @@ docker-compose restart app
 **AI non risponde**:
 ```bash
 # Test Ollama
-curl http://localhost:11434/api/tags
+curl http://your-domain.com:11434/api/tags
 
 # Verifica modelli
 docker-compose exec ollama ollama list

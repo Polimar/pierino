@@ -9,8 +9,8 @@ import {
   sendPracticeReminder,
   sendPracticeCompleted,
   sendAppointmentReminder,
-} from '@/controllers/emailController';
-import { authenticateToken, requireAnyRole } from '@/middleware/auth';
+} from '../controllers/emailController';
+import { authenticateToken, requireAnyRole } from '../middleware/auth';
 
 const router = Router();
 

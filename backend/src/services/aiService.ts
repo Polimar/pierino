@@ -2,9 +2,9 @@ import axios from 'axios';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import prisma from '@/config/database';
-import config from '@/config/env';
-import { createLogger } from '@/utils/logger';
+import prisma from '../config/database';
+import config from '../config/env';
+import { createLogger } from '../utils/logger';
 import { AIProvider } from '@prisma/client';
 
 const logger = createLogger('AIService');

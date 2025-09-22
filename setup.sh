@@ -77,7 +77,7 @@ if [ ! -f /opt/geometra/ssl/server.crt ]; then
     sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
         -keyout /opt/geometra/ssl/server.key \
         -out /opt/geometra/ssl/server.crt \
-        -subj "/C=IT/ST=Italy/L=City/O=Geometra Studio/CN=localhost"
+        -subj "/C=IT/ST=Italy/L=City/O=Geometra Studio/CN=your-domain.com"
     
     sudo chown -R $USER:$USER /opt/geometra/ssl
     echo "✅ Certificati SSL generati"
