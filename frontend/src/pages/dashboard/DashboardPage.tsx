@@ -18,7 +18,7 @@ const stats = [
   },
   {
     name: 'Messaggi WhatsApp',
-    value: '23',
+    value: '28',
     change: '-1.25%',
     changeType: 'decrease',
     icon: MessageSquare,

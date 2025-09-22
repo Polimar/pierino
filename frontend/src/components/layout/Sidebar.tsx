@@ -9,7 +9,8 @@ import {
   FolderOpen, 
   Bot, 
   Settings,
-  Building2
+  Building2,
+  UserCog
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/store/authStore';
@@ -26,6 +27,7 @@ const navigation = [
 ];
 
 const secondaryNavigation = [
+  { name: 'Utenti', href: '/users', icon: UserCog },
   { name: 'Impostazioni', href: '/settings', icon: Settings },
 ];
 
@@ -39,7 +41,7 @@ export default function Sidebar() {
         <div className="flex h-16 shrink-0 items-center">
           <Building2 className="h-8 w-8 text-blue-600" />
           <span className="ml-2 text-xl font-bold text-gray-900">
-            Geometra
+            Studio Gori
           </span>
         </div>
 

@@ -11,6 +11,8 @@ import DashboardPage from '@/pages/dashboard/DashboardPage';
 import ClientsPage from '@/pages/clients/ClientsPage';
 import ClientDetailPage from '@/pages/clients/ClientDetailPage';
 import LoadingPage from '@/pages/LoadingPage';
+import UsersPage from '@/pages/users/UsersPage';
+import SettingsPage from '@/pages/settings/SettingsPage';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
@@ -108,7 +110,8 @@ function App() {
               <Route path="calendar" element={<div>Calendario - Coming Soon</div>} />
               <Route path="documents" element={<div>Documenti - Coming Soon</div>} />
               <Route path="ai-assistant" element={<div>AI Assistant - Coming Soon</div>} />
-              <Route path="settings" element={<div>Impostazioni - Coming Soon</div>} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
 
             {/* Catch all route */}

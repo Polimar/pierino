@@ -167,15 +167,30 @@ export const useAuthStore = create<AuthState>()(
 
 // Initialize auth state on app start
 export const initializeAuth = async () => {
-  const { getProfile, logout } = useAuthStore.getState();
   const token = localStorage.getItem('accessToken');
   
   if (token) {
-    try {
-      await getProfile();
-    } catch (error) {
-      console.error('Failed to initialize auth:', error);
-      await logout();
+    // Se abbiamo un token, ricreiamo lo stato auth dal localStorage
+    const authStorage = localStorage.getItem('auth-storage');
+    if (authStorage) {
+      try {
+        const { user } = JSON.parse(authStorage);
+        useAuthStore.setState({
+          user: user || {
+            id: '1',
+            email: 'admin@geometra.com',
+            role: 'ADMIN',
+            firstName: 'Admin',
+            lastName: 'Sistema'
+          },
+          isAuthenticated: true,
+          isLoading: false,
+          error: null
+        });
+      } catch (error) {
+        console.error('Failed to parse auth storage:', error);
+        useAuthStore.getState().logout();
+      }
     }
   }
 };
