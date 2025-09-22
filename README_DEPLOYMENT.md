@@ -1,6 +1,6 @@
-# Deployment Guide - Geometra Webapp
+# Deployment Guide - Studio Gori Webapp
 
-Guida completa per il deployment della webapp su server Ubuntu.
+Guida completa per il deployment di Studio Gori su server Ubuntu.
 
 ## Requisiti Server
 
@@ -42,7 +42,7 @@ docker-compose up -d
 
 ```bash
 # Database
-DATABASE_URL="postgresql://postgres:geometra2024@db:5432/geometra_app"
+DATABASE_URL="postgresql://postgres:studiogori2024@db:5432/studio_gori_app"
 
 # JWT Secrets (CAMBIA IN PRODUZIONE!)
 JWT_SECRET=your_super_secret_jwt_key_change_in_production
@@ -234,7 +234,7 @@ htop
    sudo apt install certbot python3-certbot-nginx
    
    # Ottieni certificato
-   sudo certbot --nginx -d your-domain.com
+   sudo certbot --nginx -d vps-3dee2600.vps.ovh.net
    
    # Rinnovo automatico
    sudo crontab -e

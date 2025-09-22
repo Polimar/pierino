@@ -72,14 +72,14 @@ if [ ! -f /opt/geometra/.env ]; then
 fi
 
 # Genera certificati SSL self-signed se non esistono
-if [ ! -f /opt/geometra/ssl/server.crt ]; then
+if [ ! -f /opt/studio-gori/ssl/server.crt ]; then
     echo "🔒 Generazione certificati SSL..."
     sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout /opt/geometra/ssl/server.key \
-        -out /opt/geometra/ssl/server.crt \
-        -subj "/C=IT/ST=Italy/L=City/O=Geometra Studio/CN=your-domain.com"
+        -keyout /opt/studio-gori/ssl/server.key \
+        -out /opt/studio-gori/ssl/server.crt \
+        -subj "/C=IT/ST=Italy/L=City/O=Studio Gori/CN=vps-3dee2600.vps.ovh.net"
     
-    sudo chown -R $USER:$USER /opt/geometra/ssl
+    sudo chown -R $USER:$USER /opt/studio-gori/ssl
     echo "✅ Certificati SSL generati"
 fi
 

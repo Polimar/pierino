@@ -1,7 +1,7 @@
 {
-  "name": "geometra-backend",
+  "name": "studio-gori-backend",
   "version": "1.0.0",
-  "description": "Backend per gestionale studio geometra",
+  "description": "Backend per gestionale Studio Gori",
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon src/server.ts",

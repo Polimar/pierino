@@ -1,8 +1,8 @@
-# Geometra Studio - Gestionale Completo
+# Studio Gori - Gestionale Completo
 
 ## 🏗️ Descrizione del Progetto
 
-Applicazione web fullstack per la gestione completa della segreteria di uno studio di geometra con integrazione WhatsApp nativa, AI assistente locale e gestione email automatica.
+Applicazione web fullstack per la gestione completa della segreteria di Studio Gori con integrazione WhatsApp nativa, AI assistente locale e gestione email automatica.
 
 ### ✨ Caratteristiche Principali
 
@@ -57,9 +57,9 @@ Dopo l'installazione, utilizza queste credenziali:
 
 ## 📱 Accesso
 
-- **Frontend**: http://localhost:5173 (dev) o https://your-domain.com (prod)
-- **API**: https://your-domain.com/api
-- **Database UI**: https://your-domain.com/api/prisma-studio
+- **Frontend**: http://localhost:5173 (dev) o https://vps-3dee2600.vps.ovh.net (prod)
+- **API**: https://vps-3dee2600.vps.ovh.net/api
+- **Database UI**: https://vps-3dee2600.vps.ovh.net/api/prisma-studio
 
 ## Stack Tecnologico Richiesto
 - **Frontend**: React.js con TypeScript, Tailwind CSS, Shadcn/UI
@@ -586,8 +586,8 @@ ALLOWED_FILE_TYPES=pdf,doc,docx,jpg,png
 # App
 NODE_ENV=production
 PORT=3000
-CLIENT_URL=https://your-domain.com
-API_URL=https://your-domain.com/api
+CLIENT_URL=https://vps-3dee2600.vps.ovh.net
+API_URL=https://vps-3dee2600.vps.ovh.net/api
 ```
 
 ### Docker Setup
@@ -945,7 +945,7 @@ docker-compose restart app
 **AI non risponde**:
 ```bash
 # Test Ollama
-curl http://your-domain.com:11434/api/tags
+curl http://vps-3dee2600.vps.ovh.net:11434/api/tags
 
 # Verifica modelli
 docker-compose exec ollama ollama list

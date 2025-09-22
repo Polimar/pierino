@@ -1,7 +1,7 @@
 {
-  "name": "geometra-frontend",
+  "name": "studio-gori-frontend",
   "version": "1.0.0",
-  "description": "Frontend per gestionale studio geometra",
+  "description": "Frontend per gestionale Studio Gori",
   "type": "module",
   "scripts": {
     "dev": "vite",

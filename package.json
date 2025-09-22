@@ -1,7 +1,7 @@
 {
-  "name": "geometra-webapp",
+  "name": "studio-gori-webapp",
   "version": "1.0.0",
-  "description": "Gestionale completo per studio geometra con AI integrata",
+  "description": "Gestionale completo per Studio Gori con AI integrata",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
