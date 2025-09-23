@@ -155,8 +155,79 @@ const UsersPage: React.FC = () => {
     switch (role) {
       case 'ADMIN': return 'Amministratore';
       case 'GEOMETRA': return 'Geometra';
-      case 'SECRETARY': return 'Cliente';
+      case 'SECRETARY': return 'Segreteria';
       default: return role;
+    }
+  };
+
+  const updateUserPassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert('Le password non corrispondono');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      alert('La password deve essere di almeno 6 caratteri');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`/api/users/${passwordData.userId}/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ newPassword: passwordData.newPassword })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('Password aggiornata con successo');
+        setShowPasswordDialog(false);
+        setPasswordData({ userId: '', newPassword: '', confirmPassword: '' });
+      } else {
+        alert(data.message || 'Errore nell\'aggiornamento della password');
+      }
+    } catch (error) {
+      console.error('Error updating password:', error);
+      alert('Errore di rete');
+    }
+  };
+
+  const updateUserPhone = async () => {
+    if (phoneData.phone && !phoneData.phone.startsWith('+39')) {
+      alert('Il numero di telefono deve iniziare con +39');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`/api/users/${phoneData.userId}/phone`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          phone: phoneData.phone || undefined,
+          whatsappNumber: phoneData.whatsappNumber || undefined
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('Numero di telefono aggiornato con successo');
+        setShowPhoneDialog(false);
+        setPhoneData({ userId: '', phone: '', whatsappNumber: '' });
+        await fetchUsers();
+      } else {
+        alert(data.message || 'Errore nell\'aggiornamento del numero di telefono');
+      }
+    } catch (error) {
+      console.error('Error updating phone:', error);
+      alert('Errore di rete');
     }
   };
 
@@ -318,7 +389,10 @@ const UsersPage: React.FC = () => {
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => openPasswordDialog(user.id)}
+                          onClick={() => {
+                            setPasswordData({ userId: user.id, newPassword: '', confirmPassword: '' });
+                            setShowPasswordDialog(true);
+                          }}
                           className="bg-purple-500 hover:bg-purple-600 text-white p-1"
                           title="Cambia password"
                         >
@@ -326,7 +400,14 @@ const UsersPage: React.FC = () => {
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => openPhoneDialog(user)}
+                          onClick={() => {
+                            setPhoneData({
+                              userId: user.id,
+                              phone: user.phone || '',
+                              whatsappNumber: user.whatsappNumber || ''
+                            });
+                            setShowPhoneDialog(true);
+                          }}
                           className="bg-green-500 hover:bg-green-600 text-white p-1"
                           title="Modifica telefono"
                         >
