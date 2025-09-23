@@ -138,4 +138,38 @@ router.post('/generate-token', authenticateToken, requireAdmin, async (req, res)
   }
 });
 
+// GET /api/whatsapp/models - lista modelli Ollama disponibili
+router.get('/models', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const models = await whatsappBusinessService.getAvailableModels();
+    res.json({ success: true, data: models });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/whatsapp/pull-model - scarica nuovo modello Ollama
+router.post('/pull-model', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { modelName } = req.body;
+    if (!modelName) {
+      return res.status(400).json({ success: false, message: 'modelName richiesto' });
+    }
+    const result = await whatsappBusinessService.pullModel(modelName);
+    res.json({ success: result.success, message: result.message });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/whatsapp/test-webhook - test webhook endpoint
+router.post('/test-webhook', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await whatsappBusinessService.testWebhook();
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;

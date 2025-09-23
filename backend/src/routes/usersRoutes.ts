@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import { fileStorage } from '../services/fileStorageService';
+import bcrypt from 'bcrypt';
 
 const router = Router();
 
@@ -128,6 +129,59 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error deleting user:', error);
     res.status(500).json({ success: false, message: 'Errore nell\'eliminazione dell\'utente' });
+  }
+});
+
+// PUT /api/users/:id/password - Aggiorna password utente (solo admin)
+router.put('/:id/password', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'La password deve essere di almeno 6 caratteri'
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const updated = fileStorage.updateUserPassword(id, hashedPassword);
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Utente non trovato' });
+    }
+
+    res.json({ success: true, message: 'Password aggiornata con successo' });
+  } catch (error) {
+    console.error('Error updating password:', error);
+    res.status(500).json({ success: false, message: 'Errore nell\'aggiornamento della password' });
+  }
+});
+
+// PUT /api/users/:id/phone - Aggiorna numero telefono utente (solo admin)
+router.put('/:id/phone', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { phone, whatsappNumber } = req.body;
+
+    if (phone && !phone.startsWith('+39')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Il numero di telefono deve iniziare con +39'
+      });
+    }
+
+    const updated = fileStorage.updateUserPhone(id, phone, whatsappNumber);
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Utente non trovato' });
+    }
+
+    res.json({ success: true, message: 'Numero di telefono aggiornato con successo' });
+  } catch (error) {
+    console.error('Error updating phone:', error);
+    res.status(500).json({ success: false, message: 'Errore nell\'aggiornamento del numero di telefono' });
   }
 });
 

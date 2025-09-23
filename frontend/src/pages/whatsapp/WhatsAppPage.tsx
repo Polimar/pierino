@@ -48,6 +48,8 @@ interface WhatsAppConfig {
     end: string;
     timezone: string;
   };
+  aiPrompt: string;
+  maxContextMessages: number;
 }
 
 interface WhatsAppMessage {
@@ -84,6 +86,18 @@ export default function WhatsAppPage() {
       end: '18:00',
       timezone: 'Europe/Rome',
     },
+    aiPrompt: `Sei l'assistente AI di Studio Gori, uno studio di geometri professionali che si occupa di pratiche edilizie, catasto, topografia e consulenze tecniche.
+
+RISpondi sempre in modo professionale, cortese e conciso.
+Ambiti di competenza: condoni, SCIA, permessi di costruire, catasto, topografia, APE, consulenze tecniche.
+
+Regole:
+- Fornisci informazioni accurate e utili
+- Se non sai qualcosa, dì che verificherai con un geometra dello studio
+- Mantieni un tono professionale ma amichevole
+- Rispondi in italiano
+- Limita le risposte a 2-3 frasi per essere conciso`,
+    maxContextMessages: 5,
   });
   const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -247,6 +261,33 @@ export default function WhatsAppPage() {
     }
   };
 
+  const pullModel = async (modelName: string) => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/whatsapp/pull-model', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ modelName }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(data.message);
+        fetchStatus(); // Refresh status to get new model
+      } else {
+        toast.error('Errore durante il download del modello');
+      }
+    } catch (error) {
+      console.error('Error pulling model:', error);
+      toast.error('Errore di rete durante il download del modello');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchMessages = useCallback(async () => {
     try {
       const token = localStorage.getItem('accessToken');
@@ -393,26 +434,29 @@ export default function WhatsAppPage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="config" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="config" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" /> OAuth & API
+      <Tabs defaultValue="oauth" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="oauth" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" /> OAuth Config
+          </TabsTrigger>
+          <TabsTrigger value="api" className="flex items-center gap-2">
+            <Wifi className="h-4 w-4" /> API Config
           </TabsTrigger>
           <TabsTrigger value="webhook" className="flex items-center gap-2">
             <Key className="h-4 w-4" /> Webhook
           </TabsTrigger>
           <TabsTrigger value="ai-automation" className="flex items-center gap-2">
-            <Bot className="h-4 w-4" /> AI & Automazione
+            <Bot className="h-4 w-4" /> AI & Modelli
           </TabsTrigger>
           <TabsTrigger value="messages" className="flex items-center gap-2">
             <MessageCircle className="h-4 w-4" /> Messaggi
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="config" className="mt-6">
+        <TabsContent value="oauth" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Configurazione WhatsApp Business API</CardTitle>
+              <CardTitle>Configurazione OAuth Facebook</CardTitle>
               <CardDescription>
                 Inserisci le credenziali OAuth dal pannello sviluppatori Facebook.
                 <span className="block mt-2 text-blue-600">
@@ -448,6 +492,49 @@ export default function WhatsAppPage() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="appSecret">App Secret</Label>
+                  <div className="relative">
+                    <Input
+                      id="appSecret"
+                      type={showAppSecret ? "text" : "password"}
+                      value={config.appSecret}
+                      onChange={(e) => setConfig({ ...config, appSecret: e.target.value })}
+                      placeholder="App Secret da Facebook Developers"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3"
+                      onClick={() => setShowAppSecret(!showAppSecret)}
+                    >
+                      {showAppSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <Button type="submit" disabled={loading}>
+                    <Save className="h-4 w-4 mr-2" /> Salva OAuth Config
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="api" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurazione API WhatsApp</CardTitle>
+              <CardDescription>
+                Configura le credenziali per l'invio e ricezione messaggi.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <form onSubmit={updateConfig} className="space-y-4">
+                <div className="space-y-2">
                   <Label htmlFor="accessToken">Access Token</Label>
                   <div className="relative">
                     <Input
@@ -482,35 +569,12 @@ export default function WhatsAppPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="appSecret">App Secret</Label>
-                  <div className="relative">
-                    <Input
-                      id="appSecret"
-                      type={showAppSecret ? "text" : "password"}
-                      value={config.appSecret}
-                      onChange={(e) => setConfig({ ...config, appSecret: e.target.value })}
-                      placeholder="App Secret da Facebook Developers"
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowAppSecret(!showAppSecret)}
-                    >
-                      {showAppSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-
                 <div className="flex gap-4">
                   <Button type="submit" disabled={loading}>
-                    <Save className="h-4 w-4 mr-2" /> Salva Configurazione
+                    <Save className="h-4 w-4 mr-2" /> Salva API Config
                   </Button>
                   <Button type="button" onClick={testConnection} disabled={loading} variant="outline">
-                    <TestTube className="h-4 w-4 mr-2" /> Test Connessione
+                    <TestTube className="h-4 w-4 mr-2" /> Test API Connection
                   </Button>
                 </div>
 
@@ -540,12 +604,12 @@ export default function WhatsAppPage() {
                 <div className="space-y-2">
                   <Label>Webhook URL</Label>
                   <div className="flex gap-2">
-                    <Input 
-                      value={status?.webhookUrl || ''} 
-                      readOnly 
-                      className="font-mono bg-gray-50" 
+                    <Input
+                      value={status?.webhookUrl || ''}
+                      readOnly
+                      className="font-mono bg-gray-50"
                     />
-                    <Button 
+                    <Button
                       onClick={() => copyToClipboard(status?.webhookUrl || '', 'Webhook URL')}
                       variant="outline"
                       size="sm"
@@ -558,19 +622,19 @@ export default function WhatsAppPage() {
                 <div className="space-y-2">
                   <Label>Verify Token</Label>
                   <div className="flex gap-2">
-                    <Input 
-                      value={config.webhookVerifyToken} 
-                      readOnly 
-                      className="font-mono bg-gray-50" 
+                    <Input
+                      value={config.webhookVerifyToken}
+                      readOnly
+                      className="font-mono bg-gray-50"
                     />
-                    <Button 
+                    <Button
                       onClick={() => copyToClipboard(config.webhookVerifyToken, 'Verify Token')}
                       variant="outline"
                       size="sm"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
-                    <Button 
+                    <Button
                       onClick={generateWebhookToken}
                       disabled={loading}
                       variant="outline"
@@ -582,6 +646,12 @@ export default function WhatsAppPage() {
                   <p className="text-sm text-muted-foreground">
                     Usa questo token nel campo "Verify Token" della configurazione Webhook su Facebook.
                   </p>
+                </div>
+
+                <div className="flex gap-4">
+                  <Button type="button" onClick={() => window.open('https://developers.facebook.com/docs/whatsapp/business-management-api/webhooks', '_blank')} variant="outline">
+                    <Settings className="h-4 w-4 mr-2" /> Guida Facebook
+                  </Button>
                 </div>
 
                 <div className="p-4 bg-blue-50 rounded-md">
@@ -600,129 +670,221 @@ export default function WhatsAppPage() {
         </TabsContent>
 
         <TabsContent value="ai-automation" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Impostazioni AI e Automazione</CardTitle>
-              <CardDescription>Configura come l'AI di Ollama gestisce le conversazioni WhatsApp.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <form onSubmit={updateConfig} className="space-y-4">
-                <div className="flex items-center justify-between space-x-2">
-                  <Label htmlFor="aiEnabled" className="flex items-center gap-2">
-                    <Bot className="h-5 w-5" /> Abilita AI per risposte
-                  </Label>
-                  <Switch
-                    id="aiEnabled"
-                    checked={config.aiEnabled}
-                    onCheckedChange={(checked: boolean) => setConfig({ ...config, aiEnabled: checked })}
-                  />
+          <div className="space-y-6">
+            {/* Modelli Disponibili */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Modelli AI Disponibili</CardTitle>
+                <CardDescription>Modelli scaricati e disponibili su Ollama</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Button onClick={fetchStatus} disabled={loading} variant="outline" size="sm">
+                    <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                    Aggiorna Lista
+                  </Button>
                 </div>
 
+                {status?.model && (
+                  <div className="p-3 bg-green-50 rounded-md">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span className="font-medium text-green-800">Modello Attivo: {status.model}</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  <Label htmlFor="aiModel">Modello AI (Ollama)</Label>
-                  <Select
-                    value={config.aiModel}
-                    onValueChange={(value) => setConfig({ ...config, aiModel: value })}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Seleziona modello AI" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mistral:7b">Mistral 7B</SelectItem>
-                      <SelectItem value="llama2">Llama 2</SelectItem>
-                      <SelectItem value="phi3">Phi-3 Mini</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Scarica Nuovo Modello</Label>
                   <div className="flex gap-2">
-                    <Button type="button" onClick={testAI} disabled={loading} variant="outline" size="sm">
-                      <TestTube className="h-4 w-4 mr-2" /> Test AI
+                    <Input
+                      placeholder="Nome modello (es. llama3.1, codellama, vicuna)"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          pullModel(e.currentTarget.value);
+                          e.currentTarget.value = '';
+                        }
+                      }}
+                    />
+                    <Button onClick={() => {
+                      const input = document.querySelector('input[placeholder="Nome modello"]') as HTMLInputElement;
+                      if (input?.value) {
+                        pullModel(input.value);
+                        input.value = '';
+                      }
+                    }} disabled={loading}>
+                      <Bot className="h-4 w-4 mr-2" />
+                      Pull
                     </Button>
                   </div>
-                  {testResults.ai && (
-                    <div className={`p-3 rounded-md ${testResults.ai.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-                      <div className="flex items-center gap-2">
-                        {testResults.ai.success ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                        <span className="font-medium">{testResults.ai.message}</span>
-                      </div>
-                    </div>
-                  )}
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="flex items-center justify-between space-x-2">
-                  <Label htmlFor="autoReply" className="flex items-center gap-2">
-                    <Zap className="h-5 w-5" /> Risposta Automatica (AI)
-                  </Label>
-                  <Switch
-                    id="autoReply"
-                    checked={config.autoReply}
-                    onCheckedChange={(checked: boolean) => setConfig({ ...config, autoReply: checked })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <CalendarClock className="h-5 w-5" /> Orari di Ufficio
-                  </Label>
-                  <div className="flex items-center space-x-2">
+            {/* Configurazione AI */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Configurazione AI</CardTitle>
+                <CardDescription>Impostazioni per l'assistente AI WhatsApp</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <form onSubmit={updateConfig} className="space-y-4">
+                  <div className="flex items-center justify-between space-x-2">
+                    <Label htmlFor="aiEnabled" className="flex items-center gap-2">
+                      <Bot className="h-5 w-5" /> Abilita AI per risposte
+                    </Label>
                     <Switch
-                      id="businessHoursEnabled"
-                      checked={config.businessHours.enabled}
-                      onCheckedChange={(checked: boolean) => setConfig(prev => ({
-                        ...prev,
-                        businessHours: { ...prev.businessHours, enabled: checked }
-                      }))}
+                      id="aiEnabled"
+                      checked={config.aiEnabled}
+                      onCheckedChange={(checked: boolean) => setConfig({ ...config, aiEnabled: checked })}
                     />
-                    <Label htmlFor="businessHoursEnabled">Abilita orari specifici</Label>
                   </div>
-                  {config.businessHours.enabled && (
-                    <div className="grid grid-cols-3 gap-4 mt-2">
-                      <div className="space-y-1">
-                        <Label htmlFor="businessHoursStart">Inizio</Label>
-                        <Input
-                          id="businessHoursStart"
-                          type="time"
-                          value={config.businessHours.start}
-                          onChange={(e) => setConfig(prev => ({
-                            ...prev,
-                            businessHours: { ...prev.businessHours, start: e.target.value }
-                          }))}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="businessHoursEnd">Fine</Label>
-                        <Input
-                          id="businessHoursEnd"
-                          type="time"
-                          value={config.businessHours.end}
-                          onChange={(e) => setConfig(prev => ({
-                            ...prev,
-                            businessHours: { ...prev.businessHours, end: e.target.value }
-                          }))}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="businessHoursTimezone">Fuso Orario</Label>
-                        <Input
-                          id="businessHoursTimezone"
-                          type="text"
-                          value={config.businessHours.timezone}
-                          onChange={(e) => setConfig(prev => ({
-                            ...prev,
-                            businessHours: { ...prev.businessHours, timezone: e.target.value }
-                          }))}
-                          placeholder="Europe/Rome"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
 
-                <Button type="submit" disabled={loading}>
-                  <Save className="h-4 w-4 mr-2" /> Salva Impostazioni AI
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+                  <div className="space-y-2">
+                    <Label htmlFor="aiModel">Modello AI</Label>
+                    <Select
+                      value={config.aiModel}
+                      onValueChange={(value) => setConfig({ ...config, aiModel: value })}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Seleziona modello AI" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mistral:7b">Mistral 7B</SelectItem>
+                        <SelectItem value="llama2">Llama 2</SelectItem>
+                        <SelectItem value="phi3">Phi-3 Mini</SelectItem>
+                        <SelectItem value="llama3.1">Llama 3.1</SelectItem>
+                        <SelectItem value="codellama">CodeLlama</SelectItem>
+                        <SelectItem value="vicuna">Vicuna</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="flex gap-2">
+                      <Button type="button" onClick={testAI} disabled={loading} variant="outline" size="sm">
+                        <TestTube className="h-4 w-4 mr-2" /> Test AI
+                      </Button>
+                    </div>
+                    {testResults.ai && (
+                      <div className={`p-3 rounded-md ${testResults.ai.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                        <div className="flex items-center gap-2">
+                          {testResults.ai.success ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                          <span className="font-medium">{testResults.ai.message}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="maxContextMessages">Messaggi di Contesto</Label>
+                    <Select
+                      value={config.maxContextMessages.toString()}
+                      onValueChange={(value) => setConfig({ ...config, maxContextMessages: parseInt(value) })}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 messaggio</SelectItem>
+                        <SelectItem value="3">3 messaggi</SelectItem>
+                        <SelectItem value="5">5 messaggi</SelectItem>
+                        <SelectItem value="10">10 messaggi</SelectItem>
+                        <SelectItem value="20">20 messaggi</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Numero di messaggi precedenti da includere nel contesto per l'AI
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="aiPrompt">Prompt AI Personalizzato</Label>
+                    <Textarea
+                      id="aiPrompt"
+                      value={config.aiPrompt}
+                      onChange={(e) => setConfig({ ...config, aiPrompt: e.target.value })}
+                      placeholder="Inserisci il prompt personalizzato per l'AI..."
+                      rows={8}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Questo prompt definisce il comportamento dell'AI. Usa {"{userMessage}"} per il messaggio dell'utente.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between space-x-2">
+                    <Label htmlFor="autoReply" className="flex items-center gap-2">
+                      <Zap className="h-5 w-5" /> Risposta Automatica (AI)
+                    </Label>
+                    <Switch
+                      id="autoReply"
+                      checked={config.autoReply}
+                      onCheckedChange={(checked: boolean) => setConfig({ ...config, autoReply: checked })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <CalendarClock className="h-5 w-5" /> Orari di Ufficio
+                    </Label>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="businessHoursEnabled"
+                        checked={config.businessHours.enabled}
+                        onCheckedChange={(checked: boolean) => setConfig(prev => ({
+                          ...prev,
+                          businessHours: { ...prev.businessHours, enabled: checked }
+                        }))}
+                      />
+                      <Label htmlFor="businessHoursEnabled">Abilita orari specifici</Label>
+                    </div>
+                    {config.businessHours.enabled && (
+                      <div className="grid grid-cols-3 gap-4 mt-2">
+                        <div className="space-y-1">
+                          <Label htmlFor="businessHoursStart">Inizio</Label>
+                          <Input
+                            id="businessHoursStart"
+                            type="time"
+                            value={config.businessHours.start}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              businessHours: { ...prev.businessHours, start: e.target.value }
+                            }))}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="businessHoursEnd">Fine</Label>
+                          <Input
+                            id="businessHoursEnd"
+                            type="time"
+                            value={config.businessHours.end}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              businessHours: { ...prev.businessHours, end: e.target.value }
+                            }))}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="businessHoursTimezone">Fuso Orario</Label>
+                          <Input
+                            id="businessHoursTimezone"
+                            type="text"
+                            value={config.businessHours.timezone}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              businessHours: { ...prev.businessHours, timezone: e.target.value }
+                            }))}
+                            placeholder="Europe/Rome"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Button type="submit" disabled={loading}>
+                    <Save className="h-4 w-4 mr-2" /> Salva Impostazioni AI
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="messages" className="mt-6">

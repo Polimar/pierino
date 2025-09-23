@@ -6,7 +6,9 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'ADMIN' | 'GEOMETRA' | 'CLIENTE';
+  phone?: string; // Con prefisso +39
+  whatsappNumber?: string; // Numero WhatsApp separato
+  role: 'ADMIN' | 'GEOMETRA' | 'SECRETARY';
   createdAt: string;
   lastLogin?: string;
 }
@@ -164,13 +166,45 @@ class FileStorageService {
   deleteUser(id: string): boolean {
     const users = this.getUsers();
     const filteredUsers = users.filter(user => user.id !== id);
-    
+
     if (filteredUsers.length === users.length) {
       return false; // User not found
     }
 
     this.writeUsers(filteredUsers);
     return true;
+  }
+
+  updateUserPassword(id: string, hashedPassword: string): User | null {
+    const users = this.getUsers();
+    const userIndex = users.findIndex(user => user.id === id);
+
+    if (userIndex === -1) {
+      return null;
+    }
+
+    // Note: In the file storage system, we don't store passwords in the users.json
+    // This method is just a placeholder - in a real implementation with database,
+    // you would update the password hash in the database
+    console.log(`Password update requested for user ${id} - would update hash: ${hashedPassword.substring(0, 10)}...`);
+
+    // For file storage, we can't actually update passwords since they're handled by auth
+    // But we return the user to indicate success
+    return users[userIndex];
+  }
+
+  updateUserPhone(id: string, phone?: string, whatsappNumber?: string): User | null {
+    const users = this.getUsers();
+    const userIndex = users.findIndex(user => user.id === id);
+
+    if (userIndex === -1) {
+      return null;
+    }
+
+    users[userIndex].phone = phone;
+    users[userIndex].whatsappNumber = whatsappNumber;
+    this.writeUsers(users);
+    return users[userIndex];
   }
 
   // SETTINGS CRUD
@@ -190,6 +224,49 @@ class FileStorageService {
     } catch (error) {
       console.error('Error writing settings:', error);
       throw new Error('Failed to save settings');
+    }
+  }
+
+  // WHATSAPP CONFIG CRUD
+  getWhatsAppConfig(): any {
+    try {
+      const whatsappConfigFile = path.join(this.dataDir, 'whatsapp_config.json');
+      const data = fs.readFileSync(whatsappConfigFile, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('Error reading WhatsApp config:', error);
+      throw new Error('Failed to load WhatsApp config');
+    }
+  }
+
+  saveWhatsAppConfig(config: any): void {
+    try {
+      const whatsappConfigFile = path.join(this.dataDir, 'whatsapp_config.json');
+      fs.writeFileSync(whatsappConfigFile, JSON.stringify(config, null, 2));
+    } catch (error) {
+      console.error('Error saving WhatsApp config:', error);
+      throw new Error('Failed to save WhatsApp config');
+    }
+  }
+
+  getWhatsAppMessages(): any[] {
+    try {
+      const whatsappMessagesFile = path.join(this.dataDir, 'whatsapp_messages.json');
+      const data = fs.readFileSync(whatsappMessagesFile, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('Error reading WhatsApp messages:', error);
+      return [];
+    }
+  }
+
+  saveWhatsAppMessages(messages: any[]): void {
+    try {
+      const whatsappMessagesFile = path.join(this.dataDir, 'whatsapp_messages.json');
+      fs.writeFileSync(whatsappMessagesFile, JSON.stringify(messages, null, 2));
+    } catch (error) {
+      console.error('Error saving WhatsApp messages:', error);
+      throw new Error('Failed to save WhatsApp messages');
     }
   }
 

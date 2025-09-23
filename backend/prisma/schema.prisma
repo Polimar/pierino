@@ -17,6 +17,8 @@ model User {
   role              Role     @default(SECRETARY)
   firstName         String?
   lastName          String?
+  phone             String?  // Aggiunto campo telefono con prefisso +39
+  whatsappNumber    String?  @unique // Numero WhatsApp separato dal telefono
   isActive          Boolean  @default(true)
   lastLogin         DateTime?
   refreshToken      String?

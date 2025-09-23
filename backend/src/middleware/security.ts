@@ -149,9 +149,9 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
 // IP whitelist middleware (for admin endpoints)
 export const ipWhitelist = (allowedIPs: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const clientIP = req.ip || req.connection.remoteAddress;
-    
-    if (!allowedIPs.includes(clientIP)) {
+    const clientIP = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown';
+
+    if (clientIP === 'unknown' || !allowedIPs.includes(clientIP)) {
       logger.warn(`Access denied for IP: ${clientIP}`);
       return res.status(403).json({
         success: false,

@@ -118,7 +118,6 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     const { clientId, limit } = req.query;
     
     const messages = await whatsappService.getMessages(
-      clientId as string, 
       limit ? parseInt(limit as string) : 50
     );
     

@@ -3,7 +3,7 @@ import path from 'path';
 import { EventEmitter } from 'events';
 import crypto from 'crypto';
 import { createLogger } from '../utils/logger';
-import { fileStorageService } from './fileStorageService';
+import { fileStorage } from './fileStorageService';
 
 const logger = createLogger('WhatsAppBusiness');
 
@@ -23,6 +23,8 @@ interface WhatsAppConfig {
     end: string;
     timezone: string;
   };
+  aiPrompt: string;
+  maxContextMessages: number;
 }
 
 interface WhatsAppMessage {
@@ -42,6 +44,7 @@ class WhatsAppBusinessService extends EventEmitter {
   private config: WhatsAppConfig | null = null;
   private messagesPath: string;
   private configPath: string;
+  private fileStorage: any;
   private aiServiceUrl: string;
 
   constructor() {
@@ -49,6 +52,7 @@ class WhatsAppBusinessService extends EventEmitter {
     this.messagesPath = '/app/data/whatsapp_messages.json';
     this.configPath = '/app/data/whatsapp_config.json';
     this.aiServiceUrl = 'http://ollama:11434';
+    this.fileStorage = fileStorage;
     this.loadConfig();
     this.initializeDefaultConfig();
   }
@@ -70,7 +74,19 @@ class WhatsAppBusinessService extends EventEmitter {
           start: '09:00',
           end: '18:00',
           timezone: 'Europe/Rome'
-        }
+        },
+        aiPrompt: `Sei l'assistente AI di Studio Gori, uno studio di geometri professionisti che si occupa di pratiche edilizie, catasto, topografia e consulenze tecniche.
+
+RISpondi sempre in modo professionale, cortese e conciso.
+Ambiti di competenza: condoni, SCIA, permessi di costruire, catasto, topografia, APE, consulenze tecniche.
+
+Regole:
+- Fornisci informazioni accurate e utili
+- Se non sai qualcosa, dì che verificherai con un geometra dello studio
+- Mantieni un tono professionale ma amichevole
+- Rispondi in italiano
+- Limita le risposte a 2-3 frasi per essere conciso`,
+        maxContextMessages: 5
       };
       this.saveConfig();
       logger.info('Default WhatsApp config initialized');
@@ -83,11 +99,8 @@ class WhatsAppBusinessService extends EventEmitter {
 
   private loadConfig() {
     try {
-      if (fs.existsSync(this.configPath)) {
-        const data = fs.readFileSync(this.configPath, 'utf8');
-        this.config = JSON.parse(data);
-        logger.info('WhatsApp Business config loaded');
-      }
+      this.config = this.fileStorage.getWhatsAppConfig();
+      logger.info('WhatsApp Business config loaded');
     } catch (error) {
       logger.error('Error loading WhatsApp config:', error);
     }
@@ -95,7 +108,7 @@ class WhatsAppBusinessService extends EventEmitter {
 
   private saveConfig() {
     try {
-      fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 2));
+      this.fileStorage.saveWhatsAppConfig(this.config);
     } catch (error) {
       logger.error('Error saving WhatsApp config:', error);
     }
@@ -200,19 +213,15 @@ class WhatsAppBusinessService extends EventEmitter {
 
   private async saveMessage(message: WhatsAppMessage): Promise<void> {
     try {
-      let messages: WhatsAppMessage[] = [];
-      if (fs.existsSync(this.messagesPath)) {
-        const data = fs.readFileSync(this.messagesPath, 'utf8');
-        messages = JSON.parse(data);
-      }
+      const messages = this.fileStorage.getWhatsAppMessages();
       messages.push(message);
-      
+
       // Mantieni solo gli ultimi 1000 messaggi
       if (messages.length > 1000) {
-        messages = messages.slice(-1000);
+        messages.splice(0, messages.length - 1000);
       }
 
-      fs.writeFileSync(this.messagesPath, JSON.stringify(messages, null, 2));
+      this.fileStorage.saveWhatsAppMessages(messages);
     } catch (error) {
       logger.error('Error saving message:', error);
     }
@@ -220,11 +229,7 @@ class WhatsAppBusinessService extends EventEmitter {
 
   async getMessages(limit = 50): Promise<WhatsAppMessage[]> {
     try {
-      if (!fs.existsSync(this.messagesPath)) {
-        return [];
-      }
-      const data = fs.readFileSync(this.messagesPath, 'utf8');
-      const messages = JSON.parse(data);
+      const messages = this.fileStorage.getWhatsAppMessages();
       return messages.slice(-limit).reverse();
     } catch (error) {
       logger.error('Error reading messages:', error);
@@ -246,11 +251,12 @@ class WhatsAppBusinessService extends EventEmitter {
         return;
       }
 
-      // Genera risposta AI
-      const aiResponse = await this.generateAIResponse(message.content);
+      // Genera risposta AI con contesto
+      const conversationHistory = await this.getMessages(50); // Get recent messages for context
+      const aiResponse = await this.generateAIResponse(message.content, conversationHistory);
       if (aiResponse) {
         await this.sendMessage(message.from, aiResponse);
-        
+
         // Aggiorna messaggio con risposta AI
         message.aiResponse = aiResponse;
         message.processed = true;
@@ -261,15 +267,21 @@ class WhatsAppBusinessService extends EventEmitter {
     }
   }
 
-  private async generateAIResponse(userMessage: string): Promise<string | null> {
+  private async generateAIResponse(userMessage: string, conversationHistory: WhatsAppMessage[] = []): Promise<string | null> {
     try {
-      const prompt = `Sei l'assistente AI di Studio Gori, uno studio di geometri professionisti. 
-      Rispondi in modo professionale e cortese alle domande dei clienti.
-      Ambiti di competenza: pratiche edilizie, catasto, topografia, consulenze tecniche.
-      
-      Messaggio cliente: "${userMessage}"
-      
-      Rispondi in massimo 2-3 frasi, in modo diretto e professionale:`;
+      // Get recent messages for context
+      const recentMessages = conversationHistory
+        .slice(-(this.config?.maxContextMessages || 5))
+        .map(msg => `${msg.isFromBusiness ? 'Tu' : 'Cliente'}: ${msg.content}`)
+        .join('\n');
+
+      const contextText = recentMessages ? `\nConversazione recente:\n${recentMessages}` : '';
+
+      const prompt = `${this.config?.aiPrompt || 'Rispondi in modo professionale'}
+
+Messaggio del cliente: "${userMessage}"${contextText}
+
+Rispondi in modo naturale mantenendo la conversazione:`;
 
       const response = await fetch(`${this.aiServiceUrl}/api/generate`, {
         method: 'POST',
@@ -280,7 +292,7 @@ class WhatsAppBusinessService extends EventEmitter {
           stream: false,
           options: {
             temperature: 0.7,
-            max_tokens: 150
+            max_tokens: 300
           }
         })
       });
@@ -289,7 +301,7 @@ class WhatsAppBusinessService extends EventEmitter {
         throw new Error(`AI service error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       return data.response?.trim() || null;
     } catch (error) {
       logger.error('Error generating AI response:', error);
@@ -334,11 +346,11 @@ class WhatsAppBusinessService extends EventEmitter {
         throw new Error(`WhatsApp API error: ${error}`);
       }
 
-      const result = await response.json();
-      
+      const result = await response.json() as any;
+
       // Salva messaggio inviato
       const sentMessage: WhatsAppMessage = {
-        id: result.messages[0].id,
+        id: result.messages?.[0]?.id || 'unknown',
         from: this.config.phoneNumberId,
         to: to,
         type: 'text',
@@ -364,7 +376,7 @@ class WhatsAppBusinessService extends EventEmitter {
       const index = messages.findIndex(m => m.id === message.id);
       if (index !== -1) {
         messages[index] = message;
-        fs.writeFileSync(this.messagesPath, JSON.stringify(messages, null, 2));
+        this.fileStorage.saveWhatsAppMessages(messages);
       }
     } catch (error) {
       logger.error('Error updating message:', error);
@@ -403,13 +415,42 @@ class WhatsAppBusinessService extends EventEmitter {
         return { success: false, message: `Errore connessione WhatsApp API: ${error}` };
       }
 
-      const data = await response.json();
-      return { 
-        success: true, 
-        message: `Connessione riuscita! Numero: ${data.display_phone_number || 'N/A'}` 
+      const data = await response.json() as any;
+      return {
+        success: true,
+        message: `Connessione riuscita! Numero: ${data.display_phone_number || 'N/A'}`
       };
     } catch (error: any) {
       return { success: false, message: `Errore di rete: ${error.message}` };
+    }
+  }
+
+  async testWebhook(): Promise<{ success: boolean; message: string }> {
+    try {
+      if (!this.config?.webhookVerifyToken) {
+        return { success: false, message: 'Webhook Verify Token non configurato' };
+      }
+
+      // Test if webhook endpoint is accessible
+      const webhookUrl = `https://vps-3dee2600.vps.ovh.net/api/whatsapp/webhook?hub.mode=subscribe&hub.challenge=test&hub.verify_token=${this.config.webhookVerifyToken}`;
+
+      const response = await fetch(webhookUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok && response.status === 200) {
+        const challenge = await response.text();
+        if (challenge === 'test') {
+          return { success: true, message: 'Webhook endpoint configurato correttamente' };
+        }
+      }
+
+      return { success: false, message: 'Webhook endpoint non accessibile o token non valido' };
+    } catch (error: any) {
+      return { success: false, message: `Errore test webhook: ${error.message}` };
     }
   }
 
@@ -430,13 +471,48 @@ class WhatsAppBusinessService extends EventEmitter {
         return { success: false, message: `Errore AI service: ${response.status}` };
       }
 
-      const data = await response.json();
-      return { 
-        success: true, 
-        message: `AI test riuscito! Risposta: ${data.response?.trim() || 'N/A'}` 
+      const data = await response.json() as any;
+      return {
+        success: true,
+        message: `AI test riuscito! Risposta: ${data?.response?.trim() || 'N/A'}`
       };
     } catch (error: any) {
       return { success: false, message: `Errore AI: ${error.message}` };
+    }
+  }
+
+  async getAvailableModels(): Promise<string[]> {
+    try {
+      const response = await fetch(`${this.aiServiceUrl}/api/tags`);
+      if (!response.ok) {
+        console.warn('Could not fetch Ollama models:', response.status);
+        return ['mistral:7b', 'llama2', 'phi3']; // Fallback models
+      }
+
+      const data = await response.json() as any;
+      return data.models?.map((m: any) => m.name) || [];
+    } catch (error) {
+      console.warn('Error fetching Ollama models:', error);
+      return ['mistral:7b', 'llama2', 'phi3']; // Fallback models
+    }
+  }
+
+  async pullModel(modelName: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(`${this.aiServiceUrl}/api/pull`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: modelName })
+      });
+
+      if (!response.ok) {
+        return { success: false, message: `Errore pull modello: ${response.status}` };
+      }
+
+      // Note: The pull endpoint might not return JSON immediately
+      return { success: true, message: `Modello ${modelName} scaricato con successo!` };
+    } catch (error: any) {
+      return { success: false, message: `Errore pull modello: ${error.message}` };
     }
   }
 }
