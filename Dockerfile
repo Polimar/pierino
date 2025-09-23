@@ -65,7 +65,8 @@ RUN apk add --no-cache \
     pixman \
     libjpeg-turbo \
     freetype \
-    curl
+    curl \
+    chromium
 
 # Installa il language pack italiano per Tesseract (ita)
 RUN mkdir -p /usr/share/tessdata && \
@@ -91,6 +92,7 @@ RUN mkdir -p /app/data/uploads /app/data/whatsapp_session
 # Variabili ambiente
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Esponi porta
 EXPOSE 3000

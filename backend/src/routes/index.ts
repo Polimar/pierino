@@ -3,6 +3,7 @@ import authRoutes from './authRoutes';
 import dashboardRoutes from './dashboardRoutes';
 import usersRoutes from './usersRoutes';
 import settingsRoutes from './settingsRoutes';
+import whatsappRoutes from './whatsappRoutes';
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use('/auth', authRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/users', usersRoutes);
 router.use('/settings', settingsRoutes);
+router.use('/whatsapp', whatsappRoutes);
 
 export default router;

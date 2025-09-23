@@ -23,8 +23,17 @@ services:
       - redis
     volumes:
       - app_data:/app/data
-      - frontend_dist:/app/frontend/dist
-    labels: []
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`vps-3dee2600.vps.ovh.net`)"
+      - "traefik.http.routers.app.entrypoints=web"
+      - "traefik.http.routers.app.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.app-secure.rule=Host(`vps-3dee2600.vps.ovh.net`)"
+      - "traefik.http.routers.app-secure.entrypoints=websecure"
+      - "traefik.http.routers.app-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.app-secure.service=app"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
     restart: unless-stopped
     networks:
       - studio_gori_network
@@ -54,11 +63,7 @@ services:
     restart: unless-stopped
     networks:
       - studio_gori_network
-    command: >
-      sh -c "ollama serve &
-             sleep 30 &&
-             ollama pull mistral-small3.1
-             wait"
+    command: ["serve"]
 
   redis:
     image: redis:7-alpine
@@ -94,34 +99,13 @@ services:
     networks:
       - studio_gori_network
 
-  frontend:
-    image: nginx:alpine
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - frontend_dist:/usr/share/nginx/html:ro
-    depends_on:
-      - app
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`vps-3dee2600.vps.ovh.net`)"
-      - "traefik.http.routers.frontend.entrypoints=web"
-      - "traefik.http.routers.frontend.middlewares=redirect-to-https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      - "traefik.http.routers.frontend-secure.rule=Host(`vps-3dee2600.vps.ovh.net`)"
-      - "traefik.http.routers.frontend-secure.entrypoints=websecure"
-      - "traefik.http.routers.frontend-secure.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.frontend-secure.service=frontend"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
-    restart: unless-stopped
-    networks:
-      - studio_gori_network
+  # frontend: # Disabilitato: backend serve direttamente frontend
 
 volumes:
   postgres_data:
   ollama_data:
   redis_data:
   app_data:
-  frontend_dist:
 
 networks:
   studio_gori_network:

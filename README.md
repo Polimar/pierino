@@ -392,13 +392,20 @@ enum PracticeStatus {
 - `PUT /api/practices/:id` - Aggiorna pratica
 - `DELETE /api/practices/:id` - Elimina pratica
 
-#### WhatsApp
+#### WhatsApp Business API
+- `GET /api/whatsapp/status` - Stato configurazione e token webhook
+- `GET /api/whatsapp/config` - Configurazione attuale (admin only)
+- `POST /api/whatsapp/config` - Aggiorna configurazione (admin only)
+- `POST /api/whatsapp/test-connection` - Test connessione API Facebook
+- `POST /api/whatsapp/test-ai` - Test AI e modelli Ollama
+- `POST /api/whatsapp/generate-token` - Genera nuovo token webhook (admin only)
+- `GET /api/whatsapp/webhook` - Endpoint verifica webhook Facebook (GET)
+- `POST /api/whatsapp/webhook` - Ricezione messaggi Facebook (POST)
 - `GET /api/whatsapp/messages` - Lista messaggi con filtri media
 - `POST /api/whatsapp/send` - Invia messaggio (testo/media)
 - `POST /api/whatsapp/send-audio` - Invia messaggio audio
 - `POST /api/whatsapp/send-image` - Invia immagine
 - `POST /api/whatsapp/connect` - Connetti WhatsApp
-- `GET /api/whatsapp/status` - Stato connessione
 - `POST /api/whatsapp/disconnect` - Disconnetti
 - `POST /api/whatsapp/transcribe` - Trascrivi audio
 - `POST /api/whatsapp/ocr` - Estrai testo da immagine
@@ -772,10 +779,13 @@ volumes:
 ## Criteri di Successo
 - [ ] Login/logout funzionante con ruoli
 - [ ] CRUD completo clienti e pratiche
-- [ ] **WhatsApp integrato con supporto audio/immagini**
-- [ ] **Trascrizione automatica messaggi vocali**
-- [ ] **OCR automatico per immagini WhatsApp**
-- [ ] **AI Ollama locale funzionante**
+- [x] **WhatsApp Business API completo con OAuth**
+- [x] **Test connessione e validazione credenziali**
+- [x] **Webhook Facebook con token automatico**
+- [x] **Gestione messaggi multimediali completa**
+- [x] **Trascrizione automatica messaggi vocali**
+- [x] **OCR automatico per immagini WhatsApp**
+- [x] **AI Ollama locale funzionante e testato**
 - [ ] **AI assistente per analisi messaggi e generazione risposte**
 - [ ] **Configurazione API esterne AI (OpenAI, Claude, Gemini)**
 - [ ] Email ricezione/invio automatico con analisi AI
@@ -796,6 +806,31 @@ npm run dev              # Avvia frontend e backend
 npm run dev:backend      # Solo backend
 npm run dev:frontend     # Solo frontend
 npm run setup:dev        # Setup completo ambiente sviluppo
+```
+
+### WhatsApp Business API
+```bash
+# Test connessione API
+curl -X POST http://localhost:3000/api/whatsapp/test-connection \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Test AI Ollama
+curl -X POST http://localhost:3000/api/whatsapp/test-ai \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Visualizza stato WhatsApp
+curl http://localhost:3000/api/whatsapp/status \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Ollama AI
+```bash
+# Test modello AI
+curl http://localhost:11434/api/generate \
+  -d '{"model":"mistral:7b","prompt":"Test","stream":false}'
+
+# Lista modelli disponibili
+curl http://localhost:11434/api/tags
 ```
 
 ### Database
@@ -829,8 +864,9 @@ npm run health           # Health check
 - ✅ **Autenticazione JWT** - Login, ruoli, sicurezza
 - ✅ **Database Schema** - Prisma ORM completo
 - ✅ **CRUD Clienti** - Gestione completa clienti
-- ✅ **WhatsApp Integration** - Messaggi multimediali, AI
-- ✅ **AI Assistente** - Ollama locale + API esterne
+- ✅ **WhatsApp Business API** - OAuth, webhook, test, AI integration
+- ✅ **AI Assistente Ollama** - Locale attivo con Mistral 7B
+- ✅ **Frontend WhatsApp** - Interfaccia completa con test integrati
 - ✅ **Docker Setup** - Deploy ready con tutti i servizi
 - ✅ **Ubuntu Deployment** - Script automatico + documentazione
 - 🔄 **CRUD Pratiche** - In sviluppo
@@ -851,20 +887,30 @@ npm run health           # Health check
 - Gestione note e documenti allegati
 - Contatori statistiche automatici
 
-### ✅ WhatsApp Business
-- Connessione nativa senza app esterne
-- Supporto messaggi multimediali (audio, immagini, video, documenti)
-- Associazione automatica messaggi-clienti
-- Creazione clienti da contatti WhatsApp
-- Storage sicuro media con organizzazione automatica
+### ✅ WhatsApp Business API Completo
+- **Configurazione OAuth** con Client ID, Access Token, Business Account ID
+- **Webhook Facebook** con token di verifica generato automaticamente
+- **Test connessione** integrato per validazione credenziali
+- **Messaggi real-time** con supporto completo multimediale (testo, audio, immagini, video, documenti)
+- **AI automatica** per risposte intelligenti e gestione conversazioni
+- **Orari di ufficio** configurabili per risposte automatiche
+- **Persistenza JSON** per conversazioni e configurazioni
+- **Frontend completo** con interfaccia moderna per gestione WhatsApp
+- **Associazione automatica** messaggi-clienti esistenti
+- **Creazione clienti** da contatti WhatsApp
+- **Storage sicuro** media con organizzazione automatica
 
-### ✅ AI Assistente
-- **Ollama locale** (privacy-first) con modelli Llama 3.1 e Mistral
+### ✅ AI Assistente Completo
+- **Ollama locale attivo** (privacy-first) con modelli Llama 3.1 e Mistral 7B
+- **Test AI integrato** per validazione modelli e connessione
 - **API esterne opzionali**: OpenAI GPT-4, Anthropic Claude, Google Gemini
-- Analisi automatica messaggi WhatsApp (urgenza, sentiment, categoria)
-- Generazione risposte intelligenti contestuali
-- Classificazione automatica tipo pratiche
-- Sistema di fallback robusto locale → cloud
+- **Analisi automatica messaggi WhatsApp** (urgenza, sentiment, categoria)
+- **Generazione risposte intelligenti** contestuali per WhatsApp
+- **Classificazione automatica tipo pratiche** con AI
+- **Sistema di fallback robusto** locale → cloud
+- **Orari di lavoro AI** configurabili per risposte automatiche
+- **Tracciamento conversazioni** con persistenza JSON
+- **Context management** avanzato per conversazioni WhatsApp
 
 ### ✅ Infrastructure
 - **Docker Compose** completo con tutti i servizi
@@ -996,4 +1042,4 @@ MIT License - Vedi [LICENSE](./LICENSE) file per dettagli.
 
 **Sviluppato con ❤️ per modernizzare gli studi tecnici italiani**
 
-*Versione 1.0.0 - Settembre 2024*
+*Versione 1.0.1 - Gennaio 2025*

@@ -13,6 +13,7 @@ import ClientDetailPage from '@/pages/clients/ClientDetailPage';
 import LoadingPage from '@/pages/LoadingPage';
 import UsersPage from '@/pages/users/UsersPage';
 import SettingsPage from '@/pages/settings/SettingsPage';
+import WhatsAppPage from '@/pages/whatsapp/WhatsAppPage';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
@@ -105,7 +106,7 @@ function App() {
               <Route path="clients" element={<ClientsPage />} />
               <Route path="clients/:id" element={<ClientDetailPage />} />
               <Route path="practices" element={<div>Pratiche - Coming Soon</div>} />
-              <Route path="whatsapp" element={<div>WhatsApp - Coming Soon</div>} />
+              <Route path="whatsapp" element={<WhatsAppPage />} />
               <Route path="email" element={<div>Email - Coming Soon</div>} />
               <Route path="calendar" element={<div>Calendario - Coming Soon</div>} />
               <Route path="documents" element={<div>Documenti - Coming Soon</div>} />

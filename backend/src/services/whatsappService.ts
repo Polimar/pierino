@@ -3,10 +3,8 @@ import qrcode from 'qrcode';
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import prisma from '../config/database';
 import config from '../config/env';
 import { createLogger } from '../utils/logger';
-import { MessageType, Priority } from '@prisma/client';
 
 const logger = createLogger('WhatsAppService');
 
@@ -14,6 +12,8 @@ interface QRCodeData {
   qr: string;
   qrImage: string;
 }
+
+type StoredMessageType = 'TEXT' | 'AUDIO' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'LOCATION' | 'CONTACT';
 
 class WhatsAppService extends EventEmitter {
   private client: Client | null = null;
@@ -43,7 +43,14 @@ class WhatsAppService extends EventEmitter {
           '--no-zygote',
           '--single-process',
           '--disable-gpu',
+          '--disable-web-security',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-features=TranslateUI',
+          '--disable-ipc-flooding-protection',
         ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       },
     });
 
@@ -99,7 +106,6 @@ class WhatsAppService extends EventEmitter {
     });
 
     this.client.on('message_create', async (message) => {
-      // Handle sent messages
       if (message.fromMe) {
         try {
           await this.handleOutgoingMessage(message);
@@ -115,26 +121,8 @@ class WhatsAppService extends EventEmitter {
       const contact = await message.getContact();
       const chat = await message.getChat();
       
-      // Find or create client
-      let client = await prisma.client.findUnique({
-        where: { whatsappNumber: contact.number },
-      });
-
-      if (!client && contact.pushname) {
-        // Create new client from WhatsApp contact
-        const nameParts = contact.pushname.split(' ');
-        client = await prisma.client.create({
-          data: {
-            firstName: nameParts[0] || 'Cliente',
-            lastName: nameParts.slice(1).join(' ') || 'WhatsApp',
-            whatsappNumber: contact.number,
-          },
-        });
-        logger.info(`Created new client from WhatsApp: ${client.firstName} ${client.lastName}`);
-      }
-
       // Determine message type
-      let messageType: MessageType = MessageType.TEXT;
+      let messageType: StoredMessageType = 'TEXT';
       let mediaPath: string | undefined;
       let mediaMimeType: string | undefined;
 
@@ -159,40 +147,49 @@ class WhatsAppService extends EventEmitter {
           
           // Determine message type based on MIME type
           if (media.mimetype.startsWith('image/')) {
-            messageType = MessageType.IMAGE;
+            messageType = 'IMAGE';
           } else if (media.mimetype.startsWith('audio/')) {
-            messageType = MessageType.AUDIO;
+            messageType = 'AUDIO';
           } else if (media.mimetype.startsWith('video/')) {
-            messageType = MessageType.VIDEO;
+            messageType = 'VIDEO';
           } else {
-            messageType = MessageType.DOCUMENT;
+            messageType = 'DOCUMENT';
           }
         }
       } else if (message.location) {
-        messageType = MessageType.LOCATION;
+        messageType = 'LOCATION';
       } else if (message.vCards && message.vCards.length > 0) {
-        messageType = MessageType.CONTACT;
+        messageType = 'CONTACT';
       }
 
-      // Save message to database
-      const savedMessage = await prisma.whatsappMessage.create({
-        data: {
+      // Persist to filesystem log (append)
+      this.appendToMessagesLog({
+        messageId: message.id.id,
+        fromMe: false,
+        contact: {
+          name: contact.pushname || contact.number,
+          number: contact.number,
+        },
+        content: message.body || '',
+        messageType,
+        mediaPath,
+        mediaMimeType,
+        timestamp: new Date(message.timestamp * 1000).toISOString(),
+        isRead: false,
+      });
+
+      // Emit event for real-time updates
+      this.emit('message_received', {
+        message: {
           messageId: message.id.id,
-          clientId: client?.id,
           fromMe: false,
           content: message.body || '',
           messageType,
           mediaPath,
           mediaMimeType,
-          timestamp: new Date(message.timestamp * 1000),
+          timestamp: new Date(message.timestamp * 1000).toISOString(),
           isRead: false,
         },
-      });
-
-      // Emit event for real-time updates
-      this.emit('message_received', {
-        message: savedMessage,
-        client,
         contact: {
           name: contact.pushname || contact.number,
           number: contact.number,
@@ -209,16 +206,8 @@ class WhatsAppService extends EventEmitter {
   private async handleOutgoingMessage(message: Message) {
     try {
       const contact = await message.getContact();
-      
-      // Find client
-      const client = await prisma.client.findUnique({
-        where: { whatsappNumber: contact.number },
-      });
-
-      if (!client) return;
-
       // Determine message type
-      let messageType: MessageType = MessageType.TEXT;
+      let messageType: StoredMessageType = 'TEXT';
       let mediaPath: string | undefined;
       let mediaMimeType: string | undefined;
 
@@ -241,30 +230,31 @@ class WhatsAppService extends EventEmitter {
           mediaMimeType = media.mimetype;
           
           if (media.mimetype.startsWith('image/')) {
-            messageType = MessageType.IMAGE;
+            messageType = 'IMAGE';
           } else if (media.mimetype.startsWith('audio/')) {
-            messageType = MessageType.AUDIO;
+            messageType = 'AUDIO';
           } else if (media.mimetype.startsWith('video/')) {
-            messageType = MessageType.VIDEO;
+            messageType = 'VIDEO';
           } else {
-            messageType = MessageType.DOCUMENT;
+            messageType = 'DOCUMENT';
           }
         }
       }
 
-      // Save sent message to database
-      await prisma.whatsappMessage.create({
-        data: {
-          messageId: message.id.id,
-          clientId: client.id,
-          fromMe: true,
-          content: message.body || '',
-          messageType,
-          mediaPath,
-          mediaMimeType,
-          timestamp: new Date(message.timestamp * 1000),
-          isRead: true,
+      // Persist to filesystem log (append)
+      this.appendToMessagesLog({
+        messageId: message.id.id,
+        fromMe: true,
+        contact: {
+          name: contact.pushname || contact.number,
+          number: contact.number,
         },
+        content: message.body || '',
+        messageType,
+        mediaPath,
+        mediaMimeType,
+        timestamp: new Date(message.timestamp * 1000).toISOString(),
+        isRead: true,
       });
 
       logger.info(`Sent message to ${contact.number}: ${message.body?.substring(0, 50)}...`);
@@ -301,7 +291,38 @@ class WhatsAppService extends EventEmitter {
 
     try {
       this.isConnecting = true;
-      await this.client?.initialize();
+      
+      // Ricrea client per evitare stati inconsistenti
+      this.initializeClient();
+      
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          this.isConnecting = false;
+          reject(new Error('Timeout connecting to WhatsApp (60s)'));
+        }, 60000);
+
+        this.once('ready', () => {
+          clearTimeout(timeout);
+          resolve(void 0);
+        });
+
+        this.once('qr', () => {
+          logger.info('QR code generated, awaiting scan...');
+          // Non risolve qui, aspetta 'ready'
+        });
+
+        this.once('auth_failure', (msg: string) => {
+          clearTimeout(timeout);
+          this.isConnecting = false;
+          reject(new Error(`Auth failed: ${msg}`));
+        });
+
+        this.client?.initialize().catch((err) => {
+          clearTimeout(timeout);
+          this.isConnecting = false;
+          reject(err);
+        });
+      });
     } catch (error) {
       this.isConnecting = false;
       logger.error('Error connecting to WhatsApp:', error);
@@ -391,41 +412,38 @@ class WhatsAppService extends EventEmitter {
     };
   }
 
-  async markAsRead(messageId: string): Promise<void> {
+  async markAsRead(_messageId: string): Promise<void> {
+    // Filesystem-only: could update a JSON store if needed
+    return;
+  }
+
+  async getMessages(limit = 50) {
+    const log = this.readMessagesLog();
+    return log.slice(-limit).reverse();
+  }
+
+  private getMessagesLogPath() {
+    const dir = path.join(config.WHATSAPP_MEDIA_PATH || '/app/data/uploads/whatsapp');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    return path.join(dir, 'messages.log.json');
+  }
+
+  private readMessagesLog(): any[] {
+    const p = this.getMessagesLogPath();
+    if (!fs.existsSync(p)) return [];
     try {
-      await prisma.whatsappMessage.update({
-        where: { messageId },
-        data: { isRead: true },
-      });
-    } catch (error) {
-      logger.error('Error marking message as read:', error);
-      throw error;
+      const raw = fs.readFileSync(p, 'utf8');
+      return JSON.parse(raw) || [];
+    } catch {
+      return [];
     }
   }
 
-  async getMessages(clientId?: string, limit = 50) {
-    const where: any = {};
-    if (clientId) {
-      where.clientId = clientId;
-    }
-
-    return await prisma.whatsappMessage.findMany({
-      where,
-      include: {
-        client: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            whatsappNumber: true,
-          },
-        },
-      },
-      orderBy: {
-        timestamp: 'desc',
-      },
-      take: limit,
-    });
+  private appendToMessagesLog(entry: any) {
+    const p = this.getMessagesLogPath();
+    const curr = this.readMessagesLog();
+    curr.push(entry);
+    fs.writeFileSync(p, JSON.stringify(curr, null, 2));
   }
 }
 

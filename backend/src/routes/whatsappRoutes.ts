@@ -1,87 +1,141 @@
 import { Router } from 'express';
-import multer from 'multer';
-import path from 'path';
-import {
-  getStatus,
-  connect,
-  disconnect,
-  sendMessage,
-  sendMedia,
-  getMessages,
-  getChats,
-  getContacts,
-  markAsRead,
-  analyzeMessage,
-  generateResponse,
-} from '../controllers/whatsappController';
-import { authenticateToken, requireAnyRole } from '../middleware/auth';
-import { uploadLimiter, validateFileType } from '../middleware/security';
-import config from '../config/env';
+import { authenticateToken, requireAdmin } from '../middleware/auth';
+import whatsappBusinessService from '../services/whatsappBusinessService';
 
 const router = Router();
 
-// Configure multer for media uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(config.WHATSAPP_MEDIA_PATH, 'outgoing'));
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  },
+// Webhook verification (GET) - pubblico per Facebook
+router.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe') {
+    whatsappBusinessService.verifyWebhook(token as string, challenge as string)
+      .then(result => {
+        if (result) {
+          res.status(200).send(result);
+        } else {
+          res.status(403).send('Forbidden');
+        }
+      })
+      .catch(() => res.status(500).send('Error'));
+  } else {
+    res.status(400).send('Bad Request');
+  }
 });
 
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: config.MAX_FILE_SIZE,
-  },
-  fileFilter: (req, file, cb) => {
-    // Allow common media types for WhatsApp
-    const allowedTypes = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-      'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/mp4',
-      'video/mp4', 'video/webm',
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    ];
-    
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Tipo di file non supportato per WhatsApp'));
+// Webhook messages (POST) - pubblico per Facebook  
+router.post('/webhook', async (req, res) => {
+  try {
+    await whatsappBusinessService.processWebhook(req.body);
+    res.status(200).send('OK');
+  } catch (error: any) {
+    console.error('Webhook error:', error);
+    res.status(500).send('Error');
+  }
+});
+
+// GET /api/whatsapp/status - stato configurazione
+router.get('/status', authenticateToken, async (req, res) => {
+  try {
+    const status = await whatsappBusinessService.getStatus();
+    res.json({ success: true, data: status });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/whatsapp/config - configurazione attuale
+router.get('/config', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const config = whatsappBusinessService.getConfig();
+    // Rimuovi dati sensibili
+    const safeConfig = config ? {
+      phoneNumberId: config.phoneNumberId,
+      businessAccountId: config.businessAccountId,
+      appId: config.appId,
+      webhookVerifyToken: config.webhookVerifyToken,
+      aiEnabled: config.aiEnabled,
+      aiModel: config.aiModel,
+      autoReply: config.autoReply,
+      businessHours: config.businessHours
+    } : null;
+    res.json({ success: true, data: safeConfig });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/whatsapp/config - aggiorna configurazione
+router.post('/config', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    await whatsappBusinessService.updateConfig(req.body);
+    res.json({ success: true, message: 'Configurazione aggiornata' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/whatsapp/messages - ultimi messaggi
+router.get('/messages', authenticateToken, async (req, res) => {
+  try {
+    const { limit } = req.query as any;
+    const n = limit ? parseInt(limit, 10) : 50;
+    const msgs = await whatsappBusinessService.getMessages(n);
+    res.json({ success: true, data: msgs });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/whatsapp/send - invia messaggio
+router.post('/send', authenticateToken, async (req, res) => {
+  try {
+    const { to, text } = req.body;
+    if (!to || !text) {
+      return res.status(400).json({ success: false, message: 'to e text richiesti' });
     }
-  },
+    const success = await whatsappBusinessService.sendMessage(to, text);
+    if (success) {
+      res.json({ success: true, message: 'Messaggio inviato' });
+    } else {
+      res.status(500).json({ success: false, message: 'Errore invio messaggio' });
+    }
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
-// All routes require authentication
-router.use(authenticateToken);
-router.use(requireAnyRole);
+// POST /api/whatsapp/test-connection - test connessione API
+router.post('/test-connection', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await whatsappBusinessService.testConnection();
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
-// WhatsApp connection management
-router.get('/status', getStatus);
-router.post('/connect', connect);
-router.post('/disconnect', disconnect);
+// POST /api/whatsapp/test-ai - test AI
+router.post('/test-ai', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await whatsappBusinessService.testAI();
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
-// Messaging
-router.post('/send', sendMessage);
-router.post(
-  '/send-media',
-  uploadLimiter,
-  upload.single('media'),
-  validateFileType(['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp3', 'ogg', 'wav', 'm4a', 'mp4', 'webm', 'pdf', 'doc', 'docx']),
-  sendMedia
-);
-
-// Messages and chats
-router.get('/messages', getMessages);
-router.get('/chats', getChats);
-router.get('/contacts', getContacts);
-router.patch('/messages/:messageId/read', markAsRead);
-
-// AI features
-router.post('/messages/:messageId/analyze', analyzeMessage);
-router.post('/messages/:messageId/generate-response', generateResponse);
+// POST /api/whatsapp/generate-token - genera nuovo webhook token
+router.post('/generate-token', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const newToken = whatsappBusinessService.generateWebhookToken();
+    await whatsappBusinessService.updateConfig({ webhookVerifyToken: newToken });
+    res.json({ success: true, data: { token: newToken } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 export default router;
