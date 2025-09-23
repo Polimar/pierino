@@ -1,7 +1,6 @@
 import { createServer } from 'http';
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
 import routes from './routes';
 
 async function startServer() {
@@ -16,16 +15,8 @@ async function startServer() {
     }));
     app.use(express.json());
 
-    // API Routes
+    // API Routes only - frontend served by nginx
     app.use('/api', routes);
-
-    // Serve static frontend files
-    app.use(express.static(path.join(__dirname, '../../frontend/dist')));
-
-    // Handle client-side routing - serve index.html for all non-API routes
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
-    });
 
     // Create HTTP server
     const server = createServer(app);
