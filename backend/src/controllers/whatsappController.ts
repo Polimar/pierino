@@ -1,15 +1,19 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import whatsappService from '../services/whatsappService';
-import aiService from '../services/aiService';
+import { whatsappBusinessService } from '../services/whatsappBusinessService';
 import { createLogger } from '../utils/logger';
-import { validateId } from '../utils/validation';
 
-const logger = createLogger('WhatsAppController');
+const logger = createLogger('WhatsAppBusinessController');
 
 export const getStatus = async (req: AuthRequest, res: Response) => {
   try {
-    const status = whatsappService.getStatus();
+    const config = whatsappBusinessService.getConfig();
+    const status = {
+      configured: config && config.accessToken && config.phoneNumberId,
+      aiEnabled: config?.aiEnabled || false,
+      model: config?.aiModel || 'mistral:7b',
+      autoReply: config?.autoReply || false
+    };
     
     res.json({
       success: true,
@@ -24,57 +28,116 @@ export const getStatus = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const connect = async (req: AuthRequest, res: Response) => {
+export const getConfig = async (req: AuthRequest, res: Response) => {
   try {
-    await whatsappService.connect();
+    const config = whatsappBusinessService.getConfig();
+    
+    // Non inviare dati sensibili
+    const safeConfig = config ? {
+      ...config,
+      accessToken: config.accessToken ? '***' : '',
+      appSecret: config.appSecret ? '***' : ''
+    } : null;
     
     res.json({
       success: true,
-      message: 'Connessione WhatsApp avviata',
+      data: safeConfig,
     });
   } catch (error) {
-    logger.error('WhatsApp connect error:', error);
+    logger.error('Get WhatsApp config error:', error);
     res.status(500).json({
       success: false,
-      message: 'Errore nella connessione WhatsApp',
+      message: 'Errore nel recupero della configurazione WhatsApp',
     });
   }
 };
 
-export const disconnect = async (req: AuthRequest, res: Response) => {
+export const updateConfig = async (req: AuthRequest, res: Response) => {
   try {
-    await whatsappService.disconnect();
+    const config = req.body;
+    await whatsappBusinessService.updateConfig(config);
     
     res.json({
       success: true,
-      message: 'WhatsApp disconnesso con successo',
+      message: 'Configurazione WhatsApp aggiornata con successo',
     });
   } catch (error) {
-    logger.error('WhatsApp disconnect error:', error);
+    logger.error('Update WhatsApp config error:', error);
     res.status(500).json({
       success: false,
-      message: 'Errore nella disconnessione WhatsApp',
+      message: 'Errore nell\'aggiornamento della configurazione WhatsApp',
+    });
+  }
+};
+
+export const testConnection = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await whatsappBusinessService.testConnection();
+    
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    logger.error('Test WhatsApp connection error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nel test della connessione WhatsApp',
+    });
+  }
+};
+
+export const testAI = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await whatsappBusinessService.testAI();
+    
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    logger.error('Test AI error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nel test dell\'AI',
+    });
+  }
+};
+
+export const testWebhook = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await whatsappBusinessService.testWebhook();
+    
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    logger.error('Test webhook error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nel test del webhook',
     });
   }
 };
 
 export const sendMessage = async (req: AuthRequest, res: Response) => {
   try {
-    const { to, message } = req.body;
+    const { to, text } = req.body;
 
-    if (!to || !message) {
+    if (!to || !text) {
       return res.status(400).json({
         success: false,
-        message: 'Destinatario e messaggio sono richiesti',
+        message: 'Destinatario e testo sono richiesti',
       });
     }
 
-    const messageId = await whatsappService.sendMessage(to, message);
+    const result = await whatsappBusinessService.sendMessage(to, text);
     
     res.json({
       success: true,
       message: 'Messaggio inviato con successo',
-      data: { messageId },
+      data: result,
     });
   } catch (error) {
     logger.error('Send WhatsApp message error:', error);
@@ -85,45 +148,17 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const sendMedia = async (req: AuthRequest, res: Response) => {
-  try {
-    const { to, caption } = req.body;
-    const file = req.file;
-
-    if (!to || !file) {
-      return res.status(400).json({
-        success: false,
-        message: 'Destinatario e file sono richiesti',
-      });
-    }
-
-    const messageId = await whatsappService.sendMedia(to, file.path, caption);
-    
-    res.json({
-      success: true,
-      message: 'Media inviato con successo',
-      data: { messageId },
-    });
-  } catch (error) {
-    logger.error('Send WhatsApp media error:', error);
-    res.status(500).json({
-      success: false,
-      message: error instanceof Error ? error.message : 'Errore nell\'invio del media',
-    });
-  }
-};
-
 export const getMessages = async (req: AuthRequest, res: Response) => {
   try {
-    const { clientId, limit } = req.query;
+    const { limit } = req.query;
     
-    const messages = await whatsappService.getMessages(
+    const messages = await whatsappBusinessService.getMessages(
       limit ? parseInt(limit as string) : 50
     );
     
     res.json({
       success: true,
-      data: { messages },
+      data: messages,
     });
   } catch (error) {
     logger.error('Get WhatsApp messages error:', error);
@@ -134,170 +169,78 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getChats = async (req: AuthRequest, res: Response) => {
+export const getModels = async (req: AuthRequest, res: Response) => {
   try {
-    const chats = await whatsappService.getChats();
+    const models = await whatsappBusinessService.getAvailableModels();
     
     res.json({
       success: true,
-      data: { chats },
+      data: models,
     });
   } catch (error) {
-    logger.error('Get WhatsApp chats error:', error);
+    logger.error('Get AI models error:', error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : 'Errore nel recupero delle chat',
+      message: 'Errore nel recupero dei modelli AI',
     });
   }
 };
 
-export const getContacts = async (req: AuthRequest, res: Response) => {
+export const pullModel = async (req: AuthRequest, res: Response) => {
   try {
-    const contacts = await whatsappService.getContacts();
-    
-    res.json({
-      success: true,
-      data: { contacts },
-    });
-  } catch (error) {
-    logger.error('Get WhatsApp contacts error:', error);
-    res.status(500).json({
-      success: false,
-      message: error instanceof Error ? error.message : 'Errore nel recupero dei contatti',
-    });
-  }
-};
+    const { modelName } = req.body;
 
-export const markAsRead = async (req: AuthRequest, res: Response) => {
-  try {
-    const { messageId } = req.params;
-    
-    const { error } = validateId(messageId);
-    if (error) {
+    if (!modelName) {
       return res.status(400).json({
         success: false,
-        message: 'ID messaggio non valido',
+        message: 'Nome del modello richiesto',
       });
     }
 
-    await whatsappService.markAsRead(messageId);
+    const result = await whatsappBusinessService.pullModel(modelName);
     
     res.json({
       success: true,
-      message: 'Messaggio contrassegnato come letto',
+      message: 'Download del modello avviato',
+      data: result,
     });
   } catch (error) {
-    logger.error('Mark WhatsApp message as read error:', error);
+    logger.error('Pull model error:', error);
     res.status(500).json({
       success: false,
-      message: 'Errore nel contrassegnare il messaggio come letto',
+      message: 'Errore nel download del modello',
     });
   }
 };
 
-export const analyzeMessage = async (req: AuthRequest, res: Response) => {
+// Webhook handlers
+export const webhookVerify = async (req: Request, res: Response) => {
   try {
-    const { messageId } = req.params;
+    const { 'hub.mode': mode, 'hub.verify_token': verifyToken, 'hub.challenge': challenge } = req.query;
     
-    const { error } = validateId(messageId);
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID messaggio non valido',
-      });
+    if (mode === 'subscribe') {
+      const result = await whatsappBusinessService.verifyWebhook(verifyToken as string, challenge as string);
+      
+      if (result) {
+        res.status(200).send(result);
+      } else {
+        res.status(403).send('Forbidden');
+      }
+    } else {
+      res.status(400).send('Bad Request');
     }
-
-    // Get message from database
-    const message = await whatsappService.getMessages();
-    const targetMessage = message.find(m => m.messageId === messageId);
-    
-    if (!targetMessage) {
-      return res.status(404).json({
-        success: false,
-        message: 'Messaggio non trovato',
-      });
-    }
-
-    // Analyze with AI
-    const clientContext = targetMessage.client 
-      ? `Cliente: ${targetMessage.client.firstName} ${targetMessage.client.lastName}`
-      : undefined;
-
-    const analysis = await aiService.analyzeWhatsAppMessage(
-      targetMessage.content,
-      clientContext
-    );
-    
-    res.json({
-      success: true,
-      data: { analysis },
-    });
   } catch (error) {
-    logger.error('Analyze WhatsApp message error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nell\'analisi del messaggio',
-    });
+    logger.error('Webhook verify error:', error);
+    res.status(500).send('Internal Server Error');
   }
 };
 
-export const generateResponse = async (req: AuthRequest, res: Response) => {
+export const webhookReceive = async (req: Request, res: Response) => {
   try {
-    const { messageId } = req.params;
-    
-    const { error } = validateId(messageId);
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID messaggio non valido',
-      });
-    }
-
-    // Get message from database
-    const messages = await whatsappService.getMessages();
-    const targetMessage = messages.find(m => m.messageId === messageId);
-    
-    if (!targetMessage) {
-      return res.status(404).json({
-        success: false,
-        message: 'Messaggio non trovato',
-      });
-    }
-
-    // Get recent conversation history
-    const conversationHistory = messages
-      .filter(m => m.clientId === targetMessage.clientId)
-      .slice(0, 10)
-      .reverse()
-      .map(m => ({
-        role: m.fromMe ? 'assistant' as const : 'user' as const,
-        content: m.content,
-      }));
-
-    const context = `
-Genera una risposta professionale per questo messaggio WhatsApp da parte di uno studio geometra.
-${targetMessage.client ? `Cliente: ${targetMessage.client.firstName} ${targetMessage.client.lastName}` : ''}
-
-Mantieni un tono professionale ma cordiale. Rispondi in italiano.
-`;
-
-    const response = await aiService.chat([
-      { role: 'system', content: context },
-      ...conversationHistory,
-    ]);
-    
-    res.json({
-      success: true,
-      data: { 
-        suggestedResponse: response.content,
-        messageId: targetMessage.messageId,
-      },
-    });
+    await whatsappBusinessService.processWebhook(req.body);
+    res.status(200).send('OK');
   } catch (error) {
-    logger.error('Generate WhatsApp response error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nella generazione della risposta',
-    });
+    logger.error('Webhook receive error:', error);
+    res.status(500).send('Internal Server Error');
   }
 };

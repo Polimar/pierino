@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
-import whatsappBusinessService from '../services/whatsappBusinessService';
+import { whatsappBusinessService } from '../services/whatsappBusinessService';
 
 const router = Router();
 

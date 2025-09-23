@@ -99,6 +99,8 @@ Regole:
 - Limita le risposte a 2-3 frasi per essere conciso`,
     maxContextMessages: 5,
   });
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [messageText, setMessageText] = useState('');
@@ -130,6 +132,40 @@ Regole:
       toast.error('Errore di rete nel recupero dello stato WhatsApp.');
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const fetchModels = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/whatsapp/models', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableModels(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching models:', error);
+    }
+  }, []);
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
     }
   }, []);
 
@@ -347,6 +383,8 @@ Regole:
     fetchStatus();
     fetchConfig();
     fetchMessages();
+    fetchModels();
+    fetchUsers();
 
     const statusInterval = setInterval(fetchStatus, 30000); // Refresh status every 30 seconds
     const messagesInterval = setInterval(fetchMessages, 15000); // Refresh messages every 15 seconds
@@ -355,7 +393,7 @@ Regole:
       clearInterval(statusInterval);
       clearInterval(messagesInterval);
     };
-  }, [fetchStatus, fetchConfig, fetchMessages]);
+  }, [fetchStatus, fetchConfig, fetchMessages, fetchModels, fetchUsers]);
 
   const getStatusIcon = () => {
     if (!status) return <Loader2 className="h-5 w-5 animate-spin text-gray-500" />;
@@ -679,9 +717,9 @@ Regole:
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex gap-2">
-                  <Button onClick={fetchStatus} disabled={loading} variant="outline" size="sm">
+                  <Button onClick={() => { fetchStatus(); fetchModels(); }} disabled={loading} variant="outline" size="sm">
                     <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                    Aggiorna Lista
+                    Aggiorna Modelli
                   </Button>
                 </div>
 
@@ -750,12 +788,15 @@ Regole:
                         <SelectValue placeholder="Seleziona modello AI" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="mistral:7b">Mistral 7B</SelectItem>
-                        <SelectItem value="llama2">Llama 2</SelectItem>
-                        <SelectItem value="phi3">Phi-3 Mini</SelectItem>
-                        <SelectItem value="llama3.1">Llama 3.1</SelectItem>
-                        <SelectItem value="codellama">CodeLlama</SelectItem>
-                        <SelectItem value="vicuna">Vicuna</SelectItem>
+                        {availableModels.length > 0 ? (
+                          availableModels.map((model) => (
+                            <SelectItem key={model} value={model}>
+                              {model}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="mistral:7b">Nessun modello disponibile</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     <div className="flex gap-2">
@@ -943,27 +984,51 @@ Regole:
               </div>
 
               {/* Send Message Form */}
-              <form onSubmit={sendMessage} className="flex gap-2">
-                <Input
-                  type="text"
-                  placeholder="Numero destinatario (es. 393401234567)"
-                  value={recipientNumber}
-                  onChange={(e) => setRecipientNumber(e.target.value)}
-                  className="w-1/3"
-                  required
-                />
-                <Input
-                  type="text"
-                  placeholder="Scrivi un messaggio..."
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  className="flex-1"
-                  required
-                />
-                <Button type="submit" disabled={loading}>
-                  <Send className="h-4 w-4 mr-2" /> Invia
-                </Button>
-              </form>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Seleziona Destinatario</Label>
+                    <Select
+                      value={recipientNumber}
+                      onValueChange={(value) => setRecipientNumber(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona utente..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.filter(user => user.whatsappNumber || user.phone).map((user) => (
+                          <SelectItem key={user.id} value={user.whatsappNumber || user.phone}>
+                            {user.firstName} {user.lastName} - {user.whatsappNumber || user.phone}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>O inserisci manualmente</Label>
+                    <Input
+                      type="text"
+                      placeholder="es. 393401234567"
+                      value={recipientNumber}
+                      onChange={(e) => setRecipientNumber(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <form onSubmit={sendMessage} className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="Scrivi un messaggio..."
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    className="flex-1"
+                    required
+                  />
+                  <Button type="submit" disabled={loading || !recipientNumber}>
+                    <Send className="h-4 w-4 mr-2" /> Invia
+                  </Button>
+                </form>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
