@@ -110,7 +110,7 @@ function App() {
               <Route path="email" element={<div>Email - Coming Soon</div>} />
               <Route path="calendar" element={<div>Calendario - Coming Soon</div>} />
               <Route path="documents" element={<div>Documenti - Coming Soon</div>} />
-              <Route path="ai-assistant" element={<div>AI Assistant - Coming Soon</div>} />
+              <Route path="ai-assistant" element={<div>AI Assistant Pro - Coming Soon</div>} />
               <Route path="users" element={<UsersPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>

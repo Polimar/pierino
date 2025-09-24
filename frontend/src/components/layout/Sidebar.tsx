@@ -23,7 +23,7 @@ const navigation = [
   { name: 'Email', href: '/email', icon: Mail, current: false },
   { name: 'Calendario', href: '/calendar', icon: Calendar, current: false },
   { name: 'Documenti', href: '/documents', icon: FolderOpen, current: false },
-  { name: 'AI Assistant', href: '/ai-assistant', icon: Bot, current: false },
+  { name: 'AI Assistant Pro', href: '/ai-assistant', icon: Bot, current: false },
 ];
 
 const secondaryNavigation = [
