@@ -34,15 +34,6 @@ export const authenticateToken = async (
       });
     }
 
-    // Per ora accetta token demo fino a JWT config completa
-    if (token === 'demo-access-token-123') {
-      req.user = {
-        id: '1',
-        email: 'admin@geometra.com',
-        role: 'ADMIN',
-      };
-      return next();
-    }
 
     // JWT validation (se configurato)
     try {

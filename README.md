@@ -6,7 +6,7 @@ Applicazione web fullstack per la gestione completa della segreteria di Studio G
 
 ### ✨ Caratteristiche Principali
 
-- 🔐 **Autenticazione JWT** con ruoli multipli
+- 🔐 **Autenticazione JWT** con ruoli multipli e gestione utenti dinamica
 - 👥 **Gestione Clienti** completa con CRUD
 - 📋 **Gestione Pratiche** con stati e priorità
 - 💬 **WhatsApp Integrato** con supporto multimediale
@@ -14,6 +14,8 @@ Applicazione web fullstack per la gestione completa della segreteria di Studio G
 - 📧 **Email Automatica** con template
 - 📊 **Dashboard Real-time** con notifiche
 - 🏗️ **Deployment Ubuntu** con Docker
+- 👤 **Gestione Utenti Dinamica** completa con permessi avanzati
+- 🔑 **Sistema Password** sicuro e dinamico
 
 ## 🚀 Quick Start
 
@@ -47,13 +49,25 @@ cd backend && npx prisma migrate dev && npx prisma db seed
 npm run dev
 ```
 
-## 🔑 Credenziali Demo
+## 🔑 Sistema di Autenticazione
 
-Dopo l'installazione, utilizza queste credenziali:
+Il sistema utilizza **gestione utenti dinamica** - non ci sono più credenziali statiche!
+
+### Utenti di Sistema
+
+Il database viene automaticamente popolato con utenti di sistema:
 
 - **Admin**: `admin@geometra.com` / `password123`
 - **Geometra**: `geometra@geometra.com` / `password123`
 - **Segreteria**: `segreteria@geometra.com` / `password123`
+
+### Gestione Utenti Avanzata
+
+- 👤 **Admin** può creare, modificare, eliminare utenti
+- 🔑 **Cambio Password** dinamico per tutti gli utenti
+- 📱 **Modifica Profilo** per ogni utente
+- 🔒 **Permessi Granulari** per ogni ruolo
+- 🚫 **Nessun Utente Statico** - tutto dal database
 
 ## 📱 Accesso
 
@@ -80,11 +94,15 @@ Dopo l'installazione, utilizza queste credenziali:
 
 ## Funzionalità Core
 
-### 1. Sistema di Autenticazione
-- Login/logout sicuro con JWT
-- Gestione ruoli (Admin, Segreteria, Geometra)
+### 1. Sistema di Autenticazione Avanzato
+- Login/logout sicuro con JWT e refresh token
+- **Gestione Utenti Dinamica** completa (no più seeder statico!)
+- Gestione ruoli multipli (Admin, Segreteria, Geometra)
+- **Cambio Password Dinamico** per tutti gli utenti
+- **Modifica Profilo Personale** per ogni utente
 - Password recovery via email
-- Sessioni persistent con refresh token
+- Sessioni persistenti con refresh token automatico
+- **Permessi Granulari** - Admin gestisce utenti, utenti modificano solo se stessi
 
 ### 2. Dashboard Principale
 - Overview delle attività giornaliere
@@ -372,11 +390,23 @@ enum PracticeStatus {
 
 ### API Endpoints Essenziali
 
-#### Autenticazione
+#### Autenticazione e Utenti
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
 - `POST /api/auth/refresh`
 - `POST /api/auth/forgot-password`
+- **Gestione Utenti (Admin only):**
+  - `GET /api/users` - Lista tutti gli utenti
+  - `POST /api/users` - Crea nuovo utente
+  - `GET /api/users/:id` - Dettagli utente specifico
+  - `PUT /api/users/:id` - Aggiorna utente
+  - `DELETE /api/users/:id` - Elimina utente
+  - `PUT /api/users/:id/password` - Cambia password utente
+  - `PUT /api/users/:id/phone` - Aggiorna numeri telefono
+- **Profilo Personale (Tutti gli utenti):**
+  - `GET /api/auth/profile` - Visualizza profilo personale
+  - `PUT /api/auth/profile` - Modifica profilo personale
+  - `PUT /api/auth/change-password` - Cambia password personale
 
 #### Clienti
 - `GET /api/clients` - Lista con paginazione e filtri
@@ -777,8 +807,11 @@ volumes:
 9. Docker configuration per production con tutti i servizi
 
 ## Criteri di Successo
-- [ ] Login/logout funzionante con ruoli
-- [ ] CRUD completo clienti e pratiche
+- [x] **Login/logout funzionante con ruoli**
+- [x] **Sistema di autenticazione avanzato con JWT e refresh token**
+- [x] **Gestione utenti dinamica completa (NOVITÀ!)**
+- [x] **Sistema password dinamico e sicuro**
+- [x] **CRUD completo clienti e pratiche**
 - [x] **WhatsApp Business API completo con OAuth**
 - [x] **Test connessione e validazione credenziali**
 - [x] **Webhook Facebook con token automatico**
@@ -838,8 +871,46 @@ curl http://localhost:11434/api/tags
 npm run prisma:migrate   # Esegui migrazioni
 npm run prisma:generate  # Genera client Prisma
 npm run prisma:studio    # Apri Prisma Studio
-npm run prisma:seed      # Popola con dati demo
 npm run prisma:reset     # Reset completo database
+```
+
+### Gestione Utenti
+```bash
+# Non c'è più seeder statico - gli utenti sono dinamici!
+# Il database viene configurato automaticamente con:
+# - Schema completo con tabelle utenti, clienti, pratiche
+# - Utenti di sistema predefiniti
+# - Permessi e ruoli configurati
+
+# Test gestione utenti (dopo login admin)
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@geometra.com", "password": "password123"}'
+
+# Crea nuovo utente (admin only)
+curl -X POST http://localhost:3000/api/users \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "nuovo@studio.com", "firstName": "Nuovo", "lastName": "Utente", "role": "SECRETARY"}'
+
+# Lista tutti gli utenti (admin only)
+curl -X GET http://localhost:3000/api/users \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Test Sistema Password
+```bash
+# Test cambio password personale
+curl -X PUT http://localhost:3000/api/auth/change-password \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"currentPassword": "vecchia", "newPassword": "nuova123"}'
+
+# Test cambio password altri utenti (admin only)
+curl -X PUT http://localhost:3000/api/users/USER_ID/password \
+  -H "Authorization: Bearer ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"newPassword": "nuovaPassword123"}'
 ```
 
 ### Docker
@@ -861,9 +932,11 @@ npm run health           # Health check
 ## 📋 Status Sviluppo
 
 - ✅ **Setup Progetto** - Struttura completa frontend/backend
-- ✅ **Autenticazione JWT** - Login, ruoli, sicurezza
-- ✅ **Database Schema** - Prisma ORM completo
+- ✅ **Autenticazione JWT Avanzata** - Login, ruoli, sicurezza, gestione utenti dinamica
+- ✅ **Database Schema** - Prisma ORM completo con gestione utenti
 - ✅ **CRUD Clienti** - Gestione completa clienti
+- ✅ **Gestione Utenti Dinamica** - CRUD completo, permessi, password, profili
+- ✅ **Sistema Password Dinamico** - Cambio password sicuro e granulare
 - ✅ **WhatsApp Business API** - OAuth, webhook, test, AI integration
 - ✅ **AI Assistente Ollama** - Locale attivo con Mistral 7B
 - ✅ **Frontend WhatsApp** - Interfaccia completa con test integrati
@@ -877,9 +950,21 @@ npm run health           # Health check
 
 ### ✅ Core System
 - Autenticazione JWT con ruoli multipli (Admin, Geometra, Segreteria)
-- Sistema di sicurezza avanzato con rate limiting
-- Database PostgreSQL con schema completo
+- **Gestione Utenti Dinamica Completa** - CRUD, permessi, password, profili
+- Sistema di sicurezza avanzato con rate limiting e permessi granulari
+- Database PostgreSQL con schema completo e utenti dinamici
 - API REST con validazione e error handling
+- **Sistema Password Dinamico** - Cambio password sicuro per tutti gli utenti
+- **Modifica Profilo Personale** - Ogni utente può aggiornare i propri dati
+
+### ✅ Gestione Utenti Dinamica (NOVITÀ!)
+- **CRUD Completo Utenti** - Admin può creare, modificare, eliminare utenti
+- **Sistema Password Dinamico** - Cambio password sicuro per tutti gli utenti
+- **Modifica Profilo Personale** - Ogni utente può aggiornare i propri dati
+- **Permessi Granulari** - Admin gestisce utenti, utenti modificano solo se stessi
+- **Validazione Completa** - Email uniche, password sicure, ruoli validi
+- **Database Dinamico** - Niente più seeder statico, tutto dal database!
+- **API REST Complete** - Endpoint dedicati per ogni operazione
 
 ### ✅ Gestione Clienti
 - CRUD completo con paginazione e ricerca
@@ -1042,4 +1127,27 @@ MIT License - Vedi [LICENSE](./LICENSE) file per dettagli.
 
 **Sviluppato con ❤️ per modernizzare gli studi tecnici italiani**
 
-*Versione 1.0.1 - Gennaio 2025*
+*Versione 1.1.0 - Gennaio 2025*
+
+## 📅 Changelog v1.1.0
+
+### 🆕 **Gestione Utenti Dinamica (NOVITÀ MAGGIORE!)**
+- ✅ **Rimosso seeder statico** - Sistema completamente dinamico
+- ✅ **CRUD completo utenti** - Admin può creare, modificare, eliminare utenti
+- ✅ **Sistema password dinamico** - Cambio password sicuro per tutti
+- ✅ **Modifica profilo personale** - Ogni utente gestisce i propri dati
+- ✅ **Permessi granulari** - Admin gestisce utenti, utenti solo se stessi
+- ✅ **API REST complete** - Endpoint dedicati per ogni operazione
+- ✅ **Validazione avanzata** - Email uniche, password sicure, ruoli validi
+- ✅ **Test completi** - API e frontend verificati con Puppeteer
+
+### 🔧 **Miglioramenti Sistema**
+- 🔄 **Database dinamico** - Niente più utenti hardcoded
+- 🔐 **Sicurezza avanzata** - Controllo accessi granulare
+- 📱 **UX migliorata** - Gestione utenti intuitiva
+- 🧪 **Test automatici** - Verifica continua del sistema
+
+### 🐛 **Bug Fix**
+- 🐛 Risolto problema credenziali demo non aggiornate
+- 🐛 Sistemato permessi utenti normali
+- 🐛 Corretta gestione password database

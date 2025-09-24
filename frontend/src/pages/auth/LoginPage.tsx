@@ -123,14 +123,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                Demo Credentials:
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                Email: admin@geometra.com | Password: password123
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>

@@ -66,7 +66,9 @@ RUN apk add --no-cache \
     libjpeg-turbo \
     freetype \
     curl \
-    chromium
+    chromium \
+    openssl \
+    openssl-dev
 
 # Installa il language pack italiano per Tesseract (ita)
 RUN mkdir -p /usr/share/tessdata && \
