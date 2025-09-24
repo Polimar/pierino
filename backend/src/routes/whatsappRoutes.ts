@@ -1,31 +1,24 @@
 import { Router } from 'express';
-import { authenticateToken, requireAdmin } from '../middleware/auth';
+import { authenticateToken, requireAdmin, type AuthRequest } from '../middleware/auth';
 import { whatsappBusinessService } from '../services/whatsappBusinessService';
 
 const router = Router();
 
-// Webhook verification (GET) - pubblico per Facebook
-router.get('/webhook', (req, res) => {
+// Webhook verification (GET)
+router.get('/webhook', async (req, res) => {
   const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+  const token = req.query['hub.verify_token'] as string;
+  const challenge = req.query['hub.challenge'] as string;
 
   if (mode === 'subscribe') {
-    whatsappBusinessService.verifyWebhook(token as string, challenge as string)
-      .then(result => {
-        if (result) {
-          res.status(200).send(result);
-        } else {
-          res.status(403).send('Forbidden');
-        }
-      })
-      .catch(() => res.status(500).send('Error'));
-  } else {
-    res.status(400).send('Bad Request');
+    const result = await whatsappBusinessService.verifyWebhook(token, challenge);
+    if (result) return res.status(200).send(result);
+    return res.status(403).send('Forbidden');
   }
+
+  return res.status(400).send('Bad Request');
 });
 
-// Webhook messages (POST) - pubblico per Facebook  
 router.post('/webhook', async (req, res) => {
   try {
     await whatsappBusinessService.processWebhook(req.body);
@@ -36,8 +29,8 @@ router.post('/webhook', async (req, res) => {
   }
 });
 
-// GET /api/whatsapp/status - stato configurazione
-router.get('/status', authenticateToken, async (req, res) => {
+// STATUS & CONFIG
+router.get('/status', authenticateToken, async (_req, res) => {
   try {
     const status = await whatsappBusinessService.getStatus();
     res.json({ success: true, data: status });
@@ -46,12 +39,12 @@ router.get('/status', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/whatsapp/config - configurazione attuale
-router.get('/config', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/config', authenticateToken, requireAdmin, async (_req, res) => {
   try {
-    const config = whatsappBusinessService.getConfig();
-    // Rimuovi dati sensibili
-    const safeConfig = config ? {
+    const config = await whatsappBusinessService.getConfig();
+    if (!config) return res.json({ success: true, data: null });
+
+    const safeConfig = {
       phoneNumberId: config.phoneNumberId,
       businessAccountId: config.businessAccountId,
       appId: config.appId,
@@ -59,15 +52,22 @@ router.get('/config', authenticateToken, requireAdmin, async (req, res) => {
       aiEnabled: config.aiEnabled,
       aiModel: config.aiModel,
       autoReply: config.autoReply,
-      businessHours: config.businessHours
-    } : null;
+      businessHours: {
+        enabled: config.businessHoursEnabled,
+        start: config.businessHoursStart,
+        end: config.businessHoursEnd,
+        timezone: config.businessHoursTimezone,
+      },
+      aiPrompt: config.aiPrompt,
+      maxContextMessages: config.maxContextMessages,
+    };
+
     res.json({ success: true, data: safeConfig });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// POST /api/whatsapp/config - aggiorna configurazione
 router.post('/config', authenticateToken, requireAdmin, async (req, res) => {
   try {
     await whatsappBusinessService.updateConfig(req.body);
@@ -77,38 +77,59 @@ router.post('/config', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-// GET /api/whatsapp/messages - ultimi messaggi
-router.get('/messages', authenticateToken, async (req, res) => {
+// CONVERSATIONS & MESSAGES
+router.get('/conversations', authenticateToken, async (req, res) => {
   try {
-    const { limit } = req.query as any;
-    const n = limit ? parseInt(limit, 10) : 50;
-    const msgs = await whatsappBusinessService.getMessages(n);
-    res.json({ success: true, data: msgs });
+    const authReq = req as AuthRequest;
+    if (!authReq.user) {
+      return res.status(401).json({ success: false, message: 'Utente non autenticato' });
+    }
+    const conversations = await whatsappBusinessService.getConversations(authReq.user);
+    res.json({ success: true, data: conversations });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// POST /api/whatsapp/send - invia messaggio
+router.get('/conversations/:id/messages', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
+    const messages = await whatsappBusinessService.getConversationMessages(id, limit);
+    res.json({ success: true, data: messages });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.post('/conversations/:id/assign', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+    await whatsappBusinessService.assignConversation(id, userId || null);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.post('/send', authenticateToken, async (req, res) => {
   try {
     const { to, text } = req.body;
     if (!to || !text) {
       return res.status(400).json({ success: false, message: 'to e text richiesti' });
     }
-    const success = await whatsappBusinessService.sendMessage(to, text);
-    if (success) {
-      res.json({ success: true, message: 'Messaggio inviato' });
-    } else {
-      res.status(500).json({ success: false, message: 'Errore invio messaggio' });
-    }
+
+    const authReq = req as AuthRequest;
+    const message = await whatsappBusinessService.sendMessage(to, text, authReq.user ?? null);
+    res.json({ success: true, data: message });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// POST /api/whatsapp/test-connection - test connessione API
-router.post('/test-connection', authenticateToken, requireAdmin, async (req, res) => {
+// UTILITIES
+router.post('/test-connection', authenticateToken, requireAdmin, async (_req, res) => {
   try {
     const result = await whatsappBusinessService.testConnection();
     res.json({ success: true, data: result });
@@ -117,8 +138,7 @@ router.post('/test-connection', authenticateToken, requireAdmin, async (req, res
   }
 });
 
-// POST /api/whatsapp/test-ai - test AI
-router.post('/test-ai', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/test-ai', authenticateToken, requireAdmin, async (_req, res) => {
   try {
     const result = await whatsappBusinessService.testAI();
     res.json({ success: true, data: result });
@@ -127,19 +147,16 @@ router.post('/test-ai', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/whatsapp/generate-token - genera nuovo webhook token
-router.post('/generate-token', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/generate-token', authenticateToken, requireAdmin, async (_req, res) => {
   try {
-    const newToken = whatsappBusinessService.generateWebhookToken();
-    await whatsappBusinessService.updateConfig({ webhookVerifyToken: newToken });
+    const newToken = await whatsappBusinessService.regenerateWebhookToken();
     res.json({ success: true, data: { token: newToken } });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// GET /api/whatsapp/models - lista modelli Ollama disponibili
-router.get('/models', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/models', authenticateToken, requireAdmin, async (_req, res) => {
   try {
     const models = await whatsappBusinessService.getAvailableModels();
     res.json({ success: true, data: models });
@@ -148,7 +165,6 @@ router.get('/models', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/whatsapp/pull-model - scarica nuovo modello Ollama
 router.post('/pull-model', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { modelName } = req.body;
@@ -157,16 +173,6 @@ router.post('/pull-model', authenticateToken, requireAdmin, async (req, res) => 
     }
     const result = await whatsappBusinessService.pullModel(modelName);
     res.json({ success: result.success, message: result.message });
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// POST /api/whatsapp/test-webhook - test webhook endpoint
-router.post('/test-webhook', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const result = await whatsappBusinessService.testWebhook();
-    res.json({ success: true, data: result });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

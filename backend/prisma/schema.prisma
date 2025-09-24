@@ -12,162 +12,218 @@ datasource db {
 }
 
 model User {
-  id                String   @id @default(cuid())
-  email             String   @unique
-  password          String
-  role              Role     @default(SECRETARY)
-  firstName         String?
-  lastName          String?
-  phone             String?  // Aggiunto campo telefono con prefisso +39
-  whatsappNumber    String?  @unique // Numero WhatsApp separato dal telefono
-  isActive          Boolean  @default(true)
-  lastLogin         DateTime?
-  refreshToken      String?
-  passwordResetToken String?
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  password             String
+  role                 Role      @default(SECRETARY)
+  firstName            String?
+  lastName             String?
+  phone                String? // Aggiunto campo telefono con prefisso +39
+  whatsappNumber       String?   @unique // Numero WhatsApp separato dal telefono
+  isActive             Boolean   @default(true)
+  lastLogin            DateTime?
+  refreshToken         String?
+  passwordResetToken   String?
   passwordResetExpires DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   // Relations
-  aiConversations   AIConversation[]
-  activities        Activity[]
-  notifications     Notification[]
+  aiConversations               AIConversation[]
+  activities                    Activity[]
+  notifications                 Notification[]
+  whatsappAssignedConversations WhatsappConversation[] @relation("ConversationAssignedTo")
+  whatsappCreatedConversations  WhatsappConversation[] @relation("ConversationCreatedBy")
 
   @@map("users")
 }
 
 model Client {
-  id              String    @id @default(cuid())
-  firstName       String
-  lastName        String
-  email           String?
-  phone           String?
-  whatsappNumber  String?   @unique
-  fiscalCode      String?   @unique
-  vatNumber       String?   @unique
-  address         String?
-  city            String?
-  province        String?
-  postalCode      String?
-  country         String?   @default("IT")
-  birthDate       DateTime?
-  birthPlace      String?
-  notes           String?
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String?
+  whatsappNumber String?   @unique
+  fiscalCode     String?   @unique
+  vatNumber      String?   @unique
+  address        String?
+  city           String?
+  province       String?
+  postalCode     String?
+  country        String?   @default("IT")
+  birthDate      DateTime?
+  birthPlace     String?
+  notes          String?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Relations
-  practices       Practice[]
-  appointments    Appointment[]
-  documents       Document[]
-  whatsappChats   WhatsappMessage[]
-  emails          Email[]
-  mediaFiles      MediaFile[]
+  practices             Practice[]
+  appointments          Appointment[]
+  documents             Document[]
+  whatsappChats         WhatsappMessage[]
+  whatsappConversations WhatsappConversation[]
+  emails                Email[]
+  mediaFiles            MediaFile[]
 
   @@map("clients")
 }
 
 model Practice {
-  id          String        @id @default(cuid())
-  title       String
-  type        PracticeType
-  status      PracticeStatus @default(PENDING)
-  priority    Priority      @default(MEDIUM)
-  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId    String
-  description String?
-  startDate   DateTime      @default(now())
-  dueDate     DateTime?
-  completedAt DateTime?
-  amount      Decimal?      @db.Decimal(10, 2)
-  paidAmount  Decimal?      @db.Decimal(10, 2) @default(0)
-  isPaid      Boolean       @default(false)
+  id            String         @id @default(cuid())
+  title         String
+  type          PracticeType
+  status        PracticeStatus @default(PENDING)
+  priority      Priority       @default(MEDIUM)
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId      String
+  description   String?
+  startDate     DateTime       @default(now())
+  dueDate       DateTime?
+  completedAt   DateTime?
+  amount        Decimal?       @db.Decimal(10, 2)
+  paidAmount    Decimal?       @default(0) @db.Decimal(10, 2)
+  isPaid        Boolean        @default(false)
   invoiceNumber String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   // Relations
-  documents   Document[]
-  activities  Activity[]
-  mediaFiles  MediaFile[]
+  documents    Document[]
+  activities   Activity[]
+  mediaFiles   MediaFile[]
   appointments Appointment[]
   emails       Email[]
 
   @@map("practices")
 }
 
-model WhatsappMessage {
-  id            String       @id @default(cuid())
-  messageId     String       @unique
-  client        Client?      @relation(fields: [clientId], references: [id])
-  clientId      String?
-  fromMe        Boolean      @default(false)
-  content       String
-  messageType   MessageType  @default(TEXT)
-  mediaUrl      String?
-  mediaPath     String?
-  mediaMimeType String?
-  transcription String?
-  ocrText       String?
-  aiAnalysis    String?
-  aiPriority    Priority?
-  isRead        Boolean      @default(false)
-  timestamp     DateTime
-  createdAt     DateTime     @default(now())
+model WhatsappConfig {
+  id                    String   @id @default(cuid())
+  accessToken           String   @default("")
+  phoneNumberId         String   @default("")
+  webhookVerifyToken    String   @default("")
+  businessAccountId     String   @default("")
+  appId                 String   @default("")
+  appSecret             String   @default("")
+  aiEnabled             Boolean  @default(false)
+  aiModel               String   @default("mistral:7b")
+  autoReply             Boolean  @default(false)
+  businessHoursEnabled  Boolean  @default(false)
+  businessHoursStart    String   @default("09:00")
+  businessHoursEnd      String   @default("18:00")
+  businessHoursTimezone String   @default("Europe/Rome")
+  aiPrompt              String   @default("Sei l'assistente AI di Studio Gori. Rispondi in modo professionale, cortese, conciso e in italiano.")
+  maxContextMessages    Int      @default(5)
+  updatedAt             DateTime @updatedAt
+  createdAt             DateTime @default(now())
+}
 
-  // Relations
-  mediaFiles    MediaFile[]
+model WhatsappConversation {
+  id              String   @id @default(cuid())
+  contactPhone    String
+  contactName     String?
+  clientId        String?
+  client          Client?  @relation(fields: [clientId], references: [id])
+  assignedToId    String?
+  assignedTo      User?    @relation("ConversationAssignedTo", fields: [assignedToId], references: [id])
+  createdById     String?
+  createdBy       User?    @relation("ConversationCreatedBy", fields: [createdById], references: [id])
+  lastMessageAt   DateTime @default(now())
+  lastMessageText String?  @default("")
+  unreadCount     Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  messages WhatsappMessage[]
+
+  @@unique([contactPhone])
+  @@map("whatsapp_conversations")
+}
+
+enum WhatsappAuthorType {
+  CLIENT
+  BUSINESS_USER
+  BUSINESS_AI
+}
+
+model WhatsappMessage {
+  id             String               @id @default(cuid())
+  messageId      String?              @unique
+  conversationId String
+  conversation   WhatsappConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  clientId       String?
+  client         Client?              @relation(fields: [clientId], references: [id])
+  authorType     WhatsappAuthorType   @default(CLIENT)
+  authorId       String?
+  content        String
+  messageType    MessageType          @default(TEXT)
+  mediaUrl       String?
+  mediaPath      String?
+  mediaMimeType  String?
+  transcription  String?
+  ocrText        String?
+  aiAnalysis     String?
+  aiPriority     Priority?
+  processed      Boolean              @default(false)
+  aiResponse     String?
+  isRead         Boolean              @default(false)
+  timestamp      DateTime             @default(now())
+  createdAt      DateTime             @default(now())
+
+  mediaFiles MediaFile[]
 
   @@map("whatsapp_messages")
 }
 
 model Email {
-  id            String    @id @default(cuid())
-  messageId     String    @unique
-  client        Client?   @relation(fields: [clientId], references: [id])
-  clientId      String?
-  practice      Practice? @relation(fields: [practiceId], references: [id])
-  practiceId    String?
-  fromEmail     String
-  toEmail       String
-  ccEmail       String?
-  bccEmail      String?
-  subject       String
-  content       String
-  htmlContent   String?
-  isRead        Boolean   @default(false)
-  isSent        Boolean   @default(false)
-  sentAt        DateTime?
-  receivedAt    DateTime?
-  createdAt     DateTime  @default(now())
+  id          String    @id @default(cuid())
+  messageId   String    @unique
+  client      Client?   @relation(fields: [clientId], references: [id])
+  clientId    String?
+  practice    Practice? @relation(fields: [practiceId], references: [id])
+  practiceId  String?
+  fromEmail   String
+  toEmail     String
+  ccEmail     String?
+  bccEmail    String?
+  subject     String
+  content     String
+  htmlContent String?
+  isRead      Boolean   @default(false)
+  isSent      Boolean   @default(false)
+  sentAt      DateTime?
+  receivedAt  DateTime?
+  createdAt   DateTime  @default(now())
 
   // Relations
-  attachments   Document[]
+  attachments Document[]
 
   @@map("emails")
 }
 
 model Document {
-  id            String    @id @default(cuid())
+  id            String       @id @default(cuid())
   filename      String
   originalName  String
   mimeType      String
   size          Int
   path          String
   url           String?
-  client        Client?   @relation(fields: [clientId], references: [id])
+  client        Client?      @relation(fields: [clientId], references: [id])
   clientId      String?
-  practice      Practice? @relation(fields: [practiceId], references: [id])
+  practice      Practice?    @relation(fields: [practiceId], references: [id])
   practiceId    String?
-  email         Email?    @relation(fields: [emailId], references: [id])
+  email         Email?       @relation(fields: [emailId], references: [id])
   emailId       String?
   documentType  DocumentType @default(OTHER)
-  isPublic      Boolean   @default(false)
+  isPublic      Boolean      @default(false)
   extractedText String?
   aiTags        String[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   @@map("documents")
 }
@@ -197,30 +253,30 @@ model MediaFile {
 }
 
 model Appointment {
-  id          String            @id @default(cuid())
-  title       String
-  description String?
-  client      Client            @relation(fields: [clientId], references: [id])
-  clientId    String
-  practice    Practice?         @relation(fields: [practiceId], references: [id])
-  practiceId  String?
-  startTime   DateTime
-  endTime     DateTime
-  status      AppointmentStatus @default(SCHEDULED)
-  location    String?
-  reminderSent Boolean          @default(false)
-  notes       String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  id           String            @id @default(cuid())
+  title        String
+  description  String?
+  client       Client            @relation(fields: [clientId], references: [id])
+  clientId     String
+  practice     Practice?         @relation(fields: [practiceId], references: [id])
+  practiceId   String?
+  startTime    DateTime
+  endTime      DateTime
+  status       AppointmentStatus @default(SCHEDULED)
+  location     String?
+  reminderSent Boolean           @default(false)
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   @@map("appointments")
 }
 
 model Activity {
-  id          String      @id @default(cuid())
-  practice    Practice    @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  id          String         @id @default(cuid())
+  practice    Practice       @relation(fields: [practiceId], references: [id], onDelete: Cascade)
   practiceId  String
-  user        User        @relation(fields: [userId], references: [id])
+  user        User           @relation(fields: [userId], references: [id])
   userId      String
   type        ActivityType
   title       String
@@ -228,8 +284,8 @@ model Activity {
   status      ActivityStatus @default(PENDING)
   dueDate     DateTime?
   completedAt DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   @@map("activities")
 }
@@ -256,32 +312,32 @@ model AIConfiguration {
 }
 
 model AIConversation {
-  id          String    @id @default(cuid())
-  user        User      @relation(fields: [userId], references: [id])
-  userId      String
-  title       String?
-  context     String?
-  messages    Json[]
-  summary     String?
-  tokenCount  Int?      @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  title      String?
+  context    String?
+  messages   Json[]
+  summary    String?
+  tokenCount Int?     @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@map("ai_conversations")
 }
 
 model Notification {
-  id          String           @id @default(cuid())
-  user        User             @relation(fields: [userId], references: [id])
-  userId      String
-  type        NotificationType
-  title       String
-  message     String
-  data        Json?
-  isRead      Boolean          @default(false)
-  priority    Priority         @default(MEDIUM)
-  expiresAt   DateTime?
-  createdAt   DateTime         @default(now())
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id])
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  isRead    Boolean          @default(false)
+  priority  Priority         @default(MEDIUM)
+  expiresAt DateTime?
+  createdAt DateTime         @default(now())
 
   @@map("notifications")
 }

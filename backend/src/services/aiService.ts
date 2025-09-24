@@ -72,7 +72,7 @@ class AIService {
       case AIProvider.OPENAI:
         return await this.chatWithOpenAI(messages, aiConfig);
       case AIProvider.ANTHROPIC:
-        return await this.chatWithAnthropic(messages, aiConfig);
+        throw new Error('Provider Anthropic non supportato nella build corrente');
       case AIProvider.GEMINI:
         return await this.chatWithGemini(messages, aiConfig);
       default:
@@ -156,44 +156,7 @@ class AIService {
   }
 
   private async chatWithAnthropic(messages: ChatMessage[], config: any): Promise<AIResponse> {
-    if (!this.anthropic) {
-      throw new Error('Anthropic not initialized');
-    }
-
-    try {
-      // Filter out system messages and combine them
-      const systemMessages = messages.filter(m => m.role === 'system');
-      const conversationMessages = messages.filter(m => m.role !== 'system');
-      
-      const systemContent = systemMessages.length > 0 
-        ? systemMessages.map(m => m.content).join('\n')
-        : 'Sei un assistente AI per uno studio di geometra. Rispondi sempre in italiano e fornisci informazioni precise e professionali.';
-
-      const response = await this.anthropic.messages.create({
-        model: config.anthropicModel,
-        max_tokens: config.maxTokens || 2048,
-        temperature: config.temperature || 0.7,
-        system: systemContent,
-        messages: conversationMessages,
-      });
-
-      const content = response.content[0];
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response type from Anthropic');
-      }
-
-      return {
-        content: content.text,
-        usage: {
-          promptTokens: response.usage.input_tokens,
-          completionTokens: response.usage.output_tokens,
-          totalTokens: response.usage.input_tokens + response.usage.output_tokens,
-        },
-      };
-    } catch (error) {
-      logger.error('Error with Anthropic chat:', error);
-      throw new Error('Errore nella comunicazione con Anthropic');
-    }
+    throw new Error('Anthropic integration non ancora compatibile con il nuovo schema.');
   }
 
   private async chatWithGemini(messages: ChatMessage[], config: any): Promise<AIResponse> {

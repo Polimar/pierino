@@ -43,11 +43,13 @@ export const useClientStore = create<ClientState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      const response = await apiClient.get<PaginatedResponse<Client>['data']>('/clients', params);
+      const response = await apiClient.get<PaginatedResponse<Client>['data']>('/clients', {
+        params,
+      });
       
       set({
-        clients: response.items,
-        pagination: response.pagination,
+        clients: response.data.items,
+        pagination: response.data.pagination,
         isLoading: false,
       });
     } catch (error: any) {
@@ -67,7 +69,7 @@ export const useClientStore = create<ClientState>((set, get) => ({
       const response = await apiClient.get<{ client: Client }>(`/clients/${id}`);
       
       set({
-        selectedClient: response.client,
+        selectedClient: response.data.client,
         isLoading: false,
       });
     } catch (error: any) {
@@ -89,11 +91,11 @@ export const useClientStore = create<ClientState>((set, get) => ({
       // Add new client to the list
       const { clients } = get();
       set({
-        clients: [response.client, ...clients],
+        clients: [response.data.client, ...clients],
         isLoading: false,
       });
       
-      return response.client;
+      return response.data.client;
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Errore nella creazione cliente';
       set({
@@ -113,16 +115,16 @@ export const useClientStore = create<ClientState>((set, get) => ({
       // Update client in the list
       const { clients, selectedClient } = get();
       const updatedClients = clients.map(client => 
-        client.id === id ? response.client : client
+        client.id === id ? response.data.client : client
       );
       
       set({
         clients: updatedClients,
-        selectedClient: selectedClient?.id === id ? response.client : selectedClient,
+        selectedClient: selectedClient?.id === id ? response.data.client : selectedClient,
         isLoading: false,
       });
       
-      return response.client;
+      return response.data.client;
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Errore nell\'aggiornamento cliente';
       set({
@@ -162,10 +164,12 @@ export const useClientStore = create<ClientState>((set, get) => ({
     try {
       set({ isSearching: true, error: null });
       
-      const response = await apiClient.get<{ clients: Client[] }>('/clients/search', { q: query });
+      const response = await apiClient.get<{ clients: Client[] }>('/clients/search', {
+        params: { q: query },
+      });
       
       set({
-        searchResults: response.clients,
+        searchResults: response.data.clients,
         isSearching: false,
       });
     } catch (error: any) {

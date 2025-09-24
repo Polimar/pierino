@@ -31,11 +31,9 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true, error: null });
           
-          const loginResponse = await apiClient.post<AuthResponse['data']>('/auth/login', credentials);
+          const loginResponse = await apiClient.post('/auth/login', credentials);
+          const { user, accessToken, refreshToken } = loginResponse.data.data;
           
-          const { user, accessToken, refreshToken } = loginResponse;
-          
-          // Store tokens
           localStorage.setItem('accessToken', accessToken);
           localStorage.setItem('refreshToken', refreshToken);
           
@@ -85,9 +83,8 @@ export const useAuthStore = create<AuthState>()(
             throw new Error('No refresh token available');
           }
           
-          const refreshResponse = await apiClient.post<AuthResponse['data']>('/auth/refresh', { refreshToken });
-          
-          const { accessToken, refreshToken: newRefreshToken } = refreshResponse;
+          const refreshResponse = await apiClient.post('/auth/refresh', { refreshToken });
+          const { accessToken, refreshToken: newRefreshToken } = refreshResponse.data.data;
           
           // Update tokens
           localStorage.setItem('accessToken', accessToken);
@@ -104,10 +101,10 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true, error: null });
           
-          const response = await apiClient.get<{ user: User }>('/auth/profile');
-          
+          const response = await apiClient.get('/auth/profile');
+
           set({
-            user: response.user,
+            user: response.data.user,
             isAuthenticated: true,
             isLoading: false,
           });

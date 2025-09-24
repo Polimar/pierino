@@ -111,6 +111,7 @@ export default function LoginPage() {
                 type="submit"
                 className="w-full"
                 disabled={isLoading}
+                onClick={() => console.log('🔧 Submit button clicked!')}
               >
                 {isLoading ? (
                   <>

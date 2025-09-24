@@ -1,9 +1,10 @@
 import { NotificationType, Priority, Role } from '@prisma/client';
 import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
-import socketService from '../socketService';
-import emailService from '../emailService';
-import whatsappService from '../whatsappService';
+// Legacy realtime services currently disabilitati in attesa del nuovo canale di notifiche
+// import socketService from '../socketService';
+// import emailService from '../emailService';
+// import whatsappService from '../whatsappService';
 
 const logger = createLogger('NotificationService');
 
@@ -19,35 +20,25 @@ interface CreateNotificationData {
 
 class NotificationService {
   async createNotification(notificationData: CreateNotificationData) {
-    try {
-      const notification = await prisma.notification.create({
-        data: {
-          ...notificationData,
-          priority: notificationData.priority || Priority.MEDIUM,
+    const [notification] = await prisma.notification.createManyAndReturn({
+      data: [
+        {
+          type: notificationData.type,
+          title: notificationData.title,
+          message: notificationData.message,
+          data: notificationData.data,
+          expiresAt: notificationData.expiresAt,
+          priority: notificationData.priority ?? Priority.MEDIUM,
+          userId: notificationData.userId ?? '',
         },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-            },
-          },
-        },
-      });
+      ],
+    });
 
-      // Send real-time notification
-      if (notification.userId) {
-        socketService.sendNotificationToUser(notification.userId, notification);
-      }
+    // Send real-time notification
+    // TODO: reintrodurre push realtime quando il nuovo socket layer sarà stabilizzato
 
-      logger.info(`Notification created: ${notification.title} for user ${notification.userId}`);
-      return notification;
-    } catch (error) {
-      logger.error('Error creating notification:', error);
-      throw error;
-    }
+    logger.info(`Notification created: ${notification.title} for user ${notification.userId}`);
+    return notification;
   }
 
   async createBulkNotifications(userIds: string[], notificationData: Omit<CreateNotificationData, 'userId'>) {
@@ -221,8 +212,8 @@ class NotificationService {
         (practice.dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      let priority = Priority.MEDIUM;
-      if (daysUntilDue <= 1) priority = Priority.URGENT;
+      let priority: Priority = Priority.MEDIUM;
+      if (daysUntilDue <= 1) priority = Priority.HIGH;
       else if (daysUntilDue <= 3) priority = Priority.HIGH;
 
       await this.createRoleNotification(Role.GEOMETRA, {
@@ -234,13 +225,7 @@ class NotificationService {
       });
 
       // Send real-time update
-      socketService.notifyPracticeDeadline({
-        practiceId,
-        title: practice.title,
-        clientName: `${practice.client?.firstName} ${practice.client?.lastName}`,
-        daysUntilDue,
-        priority,
-      });
+      // TODO: inviare realtime via nuovo socket layer
 
     } catch (error) {
       logger.error('Error notifying practice deadline:', error);
@@ -264,7 +249,7 @@ class NotificationService {
           type: NotificationType.WHATSAPP_MESSAGE,
           title: 'Nuovo messaggio WhatsApp',
           message: `Messaggio ricevuto da ${messageData.client?.firstName} ${messageData.client?.lastName}`,
-          data: { 
+          data: {
             messageId: messageData.id,
             clientId: messageData.clientId,
             preview: messageData.content?.substring(0, 100),
@@ -273,8 +258,7 @@ class NotificationService {
         }
       );
 
-      // Send real-time notification
-      socketService.notifyWhatsAppMessage(messageData);
+      // TODO: inviare realtime via nuovo socket layer
 
     } catch (error) {
       logger.error('Error notifying WhatsApp message:', error);
@@ -297,7 +281,7 @@ class NotificationService {
           type: NotificationType.EMAIL_RECEIVED,
           title: 'Nuova email ricevuta',
           message: `Email da ${emailData.fromEmail}: ${emailData.subject}`,
-          data: { 
+          data: {
             emailId: emailData.id,
             clientId: emailData.clientId,
             subject: emailData.subject,
@@ -306,8 +290,7 @@ class NotificationService {
         }
       );
 
-      // Send real-time notification
-      socketService.notifyEmailReceived(emailData);
+      // TODO: inviare realtime via nuovo socket layer
 
     } catch (error) {
       logger.error('Error notifying email received:', error);
@@ -379,13 +362,7 @@ class NotificationService {
         priority,
       });
 
-      // Send real-time notification
-      socketService.notifySystemStatus({
-        service: 'system',
-        status: 'alert',
-        message,
-        priority,
-      });
+      // TODO: inviare realtime via nuovo socket layer
 
     } catch (error) {
       logger.error('Error notifying system alert:', error);

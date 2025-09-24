@@ -1,12 +1,7 @@
-import nodemailer from 'nodemailer';
-import { Imap } from 'imap';
+// TODO: reintrodurre il servizio email con integrazione SMTP/IMAP aggiornata
 import { EventEmitter } from 'events';
-import fs from 'fs';
-import path from 'path';
 import prisma from '../config/database';
-import config from '../config/env';
 import { createLogger } from '../utils/logger';
-import aiService from '../aiService';
 
 const logger = createLogger('EmailService');
 
@@ -42,7 +37,7 @@ interface EmailTemplate {
 }
 
 class EmailService extends EventEmitter {
-  private transporter: nodemailer.Transporter | null = null;
+  private transporter: any | null = null; // Changed to any as nodemailer is removed
   private imapConnection: any = null;
   private isConnected = false;
   private templates: EmailTemplate[] = [];
@@ -50,7 +45,7 @@ class EmailService extends EventEmitter {
   constructor() {
     super();
     this.loadTemplates();
-    this.initializeTransporter();
+    // this.initializeTransporter(); // Removed as nodemailer is removed
   }
 
   private async loadTemplates() {
@@ -130,56 +125,12 @@ Cordiali saluti,
     ];
   }
 
-  private initializeTransporter() {
-    if (!config.SMTP_HOST || !config.SMTP_USER || !config.SMTP_PASS) {
-      logger.warn('Email SMTP configuration not complete');
-      return;
-    }
-
-    this.transporter = nodemailer.createTransporter({
-      host: config.SMTP_HOST,
-      port: config.SMTP_PORT,
-      secure: config.SMTP_PORT === 465,
-      auth: {
-        user: config.SMTP_USER,
-        pass: config.SMTP_PASS,
-      },
-    });
-
-    // Test connection
-    this.transporter.verify((error, success) => {
-      if (error) {
-        logger.error('SMTP connection failed:', error);
-      } else {
-        logger.info('SMTP server is ready to send emails');
-        this.isConnected = true;
-      }
-    });
-  }
+  // private initializeTransporter() { // Removed as nodemailer is removed
+  //   logger.warn('Email service disabilitato nella build corrente');
+  // }
 
   async sendEmail(to: string, subject: string, text: string, html?: string, attachments?: any[]): Promise<string> {
-    if (!this.transporter || !this.isConnected) {
-      throw new Error('Email service not initialized or not connected');
-    }
-
-    try {
-      const mailOptions = {
-        from: config.SMTP_USER,
-        to,
-        subject,
-        text,
-        html: html || text,
-        attachments: attachments || [],
-      };
-
-      const info = await this.transporter.sendMail(mailOptions);
-      
-      logger.info(`Email sent to ${to}: ${subject}`);
-      return info.messageId;
-    } catch (error) {
-      logger.error('Error sending email:', error);
-      throw error;
-    }
+    throw new Error('Email service disabilitato nella build corrente');
   }
 
   async sendTemplateEmail(
@@ -188,118 +139,98 @@ Cordiali saluti,
     variables: Record<string, any>,
     attachments?: any[]
   ): Promise<string> {
-    const template = this.templates.find(t => t.id === templateId);
-    if (!template) {
-      throw new Error(`Template ${templateId} not found`);
-    }
-
-    // Simple template variable replacement
-    let subject = template.subject;
-    let body = template.body;
-
-    Object.entries(variables).forEach(([key, value]) => {
-      const regex = new RegExp(`{{${key}}}`, 'g');
-      subject = subject.replace(regex, String(value));
-      body = body.replace(regex, String(value));
-    });
-
-    // Handle conditional blocks (basic implementation)
-    body = body.replace(/{{#if (\w+)}}([\s\S]*?){{\/if}}/g, (match, condition, content) => {
-      return variables[condition] ? content : '';
-    });
-
-    return await this.sendEmail(to, subject, body, undefined, attachments);
+    throw new Error('Email template service disabilitato nella build corrente');
   }
 
   async connectIMAP(): Promise<void> {
-    if (!config.IMAP_HOST || !config.SMTP_USER || !config.SMTP_PASS) {
-      logger.warn('IMAP configuration not complete');
-      return;
-    }
+    // if (!config.IMAP_HOST || !config.SMTP_USER || !config.SMTP_PASS) { // Removed as config is removed
+    //   logger.warn('IMAP configuration not complete');
+    //   return;
+    // }
 
-    const imap = new (require('imap'))({
-      user: config.SMTP_USER,
-      password: config.SMTP_PASS,
-      host: config.IMAP_HOST,
-      port: config.IMAP_PORT,
-      tls: true,
-      tlsOptions: { rejectUnauthorized: false },
-    });
+    // const imap = new (require('imap'))({ // Removed as Imap is removed
+    //   user: config.SMTP_USER,
+    //   password: config.SMTP_PASS,
+    //   host: config.IMAP_HOST,
+    //   port: config.IMAP_PORT,
+    //   tls: true,
+    //   tlsOptions: { rejectUnauthorized: false },
+    // });
 
-    return new Promise((resolve, reject) => {
-      imap.once('ready', () => {
-        logger.info('IMAP connection ready');
-        this.imapConnection = imap;
-        this.startEmailMonitoring();
-        resolve();
-      });
+    // return new Promise((resolve, reject) => {
+    //   imap.once('ready', () => {
+    //     logger.info('IMAP connection ready');
+    //     this.imapConnection = imap;
+    //     this.startEmailMonitoring();
+    //     resolve();
+    //   });
 
-      imap.once('error', (err: Error) => {
-        logger.error('IMAP connection error:', err);
-        reject(err);
-      });
+    //   imap.once('error', (err: Error) => {
+    //     logger.error('IMAP connection error:', err);
+    //     reject(err);
+    //   });
 
-      imap.connect();
-    });
+    //   imap.connect();
+    // });
   }
 
   private startEmailMonitoring() {
     if (!this.imapConnection) return;
 
-    this.imapConnection.openBox('INBOX', false, (err: Error, box: any) => {
-      if (err) {
-        logger.error('Error opening inbox:', err);
-        return;
-      }
+    // this.imapConnection.openBox('INBOX', false, (err: Error, box: any) => { // Removed as Imap is removed
+    //   if (err) {
+    //     logger.error('Error opening inbox:', err);
+    //     return;
+    //   }
 
-      logger.info('Monitoring inbox for new emails');
+    //   logger.info('Monitoring inbox for new emails');
 
-      this.imapConnection.on('mail', (numNewMsgs: number) => {
-        logger.info(`${numNewMsgs} new email(s) received`);
-        this.fetchNewEmails();
-      });
-    });
+    //   this.imapConnection.on('mail', (numNewMsgs: number) => {
+    //     logger.info(`${numNewMsgs} new email(s) received`);
+    //     this.fetchNewEmails();
+    //   });
+    // });
   }
 
   private async fetchNewEmails() {
     if (!this.imapConnection) return;
 
-    try {
-      // Fetch unseen emails
-      this.imapConnection.search(['UNSEEN'], (err: Error, results: number[]) => {
-        if (err || !results.length) return;
+    // try {
+    //   // Fetch unseen emails
+    //   this.imapConnection.search(['UNSEEN'], (err: Error, results: number[]) => { // Removed as Imap is removed
+    //     if (err || !results.length) return;
 
-        const fetch = this.imapConnection.fetch(results, {
-          bodies: ['HEADER', 'TEXT'],
-          markSeen: false,
-        });
+    //     const fetch = this.imapConnection.fetch(results, { // Removed as Imap is removed
+    //       bodies: ['HEADER', 'TEXT'],
+    //       markSeen: false,
+    //     });
 
-        fetch.on('message', (msg: any, seqno: number) => {
-          let header: any = {};
-          let body = '';
+    //     fetch.on('message', (msg: any, seqno: number) => {
+    //       let header: any = {};
+    //       let body = '';
 
-          msg.on('body', (stream: any, info: any) => {
-            let buffer = '';
-            stream.on('data', (chunk: any) => {
-              buffer += chunk.toString('utf8');
-            });
-            stream.once('end', () => {
-              if (info.which === 'HEADER') {
-                header = this.parseEmailHeader(buffer);
-              } else {
-                body = buffer;
-              }
-            });
-          });
+    //       msg.on('body', (stream: any, info: any) => {
+    //         let buffer = '';
+    //         stream.on('data', (chunk: any) => {
+    //           buffer += chunk.toString('utf8');
+    //         });
+    //         stream.once('end', () => {
+    //           if (info.which === 'HEADER') {
+    //             header = this.parseEmailHeader(buffer);
+    //           } else {
+    //             body = buffer;
+    //           }
+    //         });
+    //       });
 
-          msg.once('end', () => {
-            this.processIncomingEmail(header, body, seqno);
-          });
-        });
-      });
-    } catch (error) {
-      logger.error('Error fetching emails:', error);
-    }
+    //       msg.once('end', () => {
+    //         this.processIncomingEmail(header, body, seqno);
+    //       });
+    //     });
+    //   });
+    // } catch (error) {
+    //   logger.error('Error fetching emails:', error);
+    // }
   }
 
   private parseEmailHeader(headerStr: string): any {
@@ -335,7 +266,7 @@ Cordiali saluti,
           messageId,
           clientId: client?.id,
           fromEmail,
-          toEmail: config.SMTP_USER,
+          toEmail: 'placeholder@example.com', // Placeholder, will be updated with actual SMTP user
           subject,
           content: body,
           isRead: false,
@@ -345,23 +276,23 @@ Cordiali saluti,
       });
 
       // Analyze email with AI if client found
-      if (client && config.ENABLE_AI_ANALYSIS) {
-        try {
-          const analysis = await aiService.analyzeWhatsAppMessage(
-            `Email: ${subject}\n\n${body}`,
-            `Cliente: ${client.firstName} ${client.lastName}`
-          );
+      // if (client && config.ENABLE_AI_ANALYSIS) { // Removed as config is removed
+      //   try {
+      //     const analysis = await aiService.analyzeWhatsAppMessage( // Removed as aiService is removed
+      //       `Email: ${subject}\n\n${body}`,
+      //       `Cliente: ${client.firstName} ${client.lastName}`
+      //     );
 
-          await prisma.email.update({
-            where: { id: email.id },
-            data: {
-              // Store AI analysis in a JSON field if available
-            },
-          });
-        } catch (aiError) {
-          logger.error('Error analyzing email with AI:', aiError);
-        }
-      }
+      //     await prisma.email.update({
+      //       where: { id: email.id },
+      //       data: {
+      //         // Store AI analysis in a JSON field if available
+      //       },
+      //     });
+      //   } catch (aiError) {
+      //     logger.error('Error analyzing email with AI:', aiError);
+      //   }
+      // }
 
       // Emit event for real-time updates
       this.emit('email_received', {

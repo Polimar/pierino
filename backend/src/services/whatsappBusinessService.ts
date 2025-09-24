@@ -1,182 +1,453 @@
-import fs from 'fs';
-import path from 'path';
 import { EventEmitter } from 'events';
 import crypto from 'crypto';
+import fetch from 'node-fetch';
+import { MessageType, Role, WhatsappAuthorType } from '@prisma/client';
+import { prisma } from '../config/database';
 import { createLogger } from '../utils/logger';
-import { fileStorage } from './fileStorageService';
+
+type IncomingMessagePayload = {
+  entry?: Array<{
+    changes?: Array<{
+      field: string;
+      value: {
+        contacts?: Array<{
+          wa_id?: string;
+          profile?: { name?: string };
+        }>;
+        metadata: {
+          phone_number_id: string;
+        };
+        messages?: Array<any>;
+      };
+    }>;
+  }>;
+};
+
+type SendMessageOptions = {
+  authorType?: WhatsappAuthorType;
+  authorId?: string | null;
+  conversationId?: string | null;
+};
+
+type OrchestratedMessage = {
+  conversationId: string;
+  messageId: string;
+};
 
 const logger = createLogger('WhatsAppBusiness');
 
-interface WhatsAppConfig {
-  accessToken: string;
-  phoneNumberId: string;
-  webhookVerifyToken: string;
-  businessAccountId: string;
-  appId: string;
-  appSecret: string;
-  aiEnabled: boolean;
-  aiModel: string;
-  autoReply: boolean;
-  businessHours: {
-    enabled: boolean;
-    start: string;
-    end: string;
-    timezone: string;
-  };
-  aiPrompt: string;
-  maxContextMessages: number;
-}
+const BUSINESS_HOURS_FALLBACK = {
+  enabled: false,
+  start: '09:00',
+  end: '18:00',
+  timezone: 'Europe/Rome',
+};
 
-interface WhatsAppMessage {
-  id: string;
-  from: string;
-  to: string;
-  type: 'text' | 'image' | 'audio' | 'video' | 'document';
-  content: string;
-  mediaUrl?: string;
-  timestamp: string;
-  isFromBusiness: boolean;
-  processed: boolean;
-  aiResponse?: string;
+class ConversationQueue {
+  private queue = new Map<string, Promise<void>>();
+
+  enqueue(conversationId: string, task: () => Promise<void>): void {
+    const current = this.queue.get(conversationId) ?? Promise.resolve();
+    const next = current.then(task).catch((error) => {
+      logger.error('Queue task error:', error);
+    });
+
+    this.queue.set(conversationId, next.finally(() => {
+      if (this.queue.get(conversationId) === next) {
+        this.queue.delete(conversationId);
+      }
+    }));
+  }
 }
 
 class WhatsAppBusinessService extends EventEmitter {
-  private config: WhatsAppConfig | null = null;
-  private messagesPath: string;
-  private configPath: string;
-  private fileStorage: any;
-  private aiServiceUrl: string;
+  private queue = new ConversationQueue();
+  private aiServiceUrl = process.env.OLLAMA_ENDPOINT || 'http://ollama:11434';
 
-  constructor() {
-    super();
-    this.messagesPath = '/app/data/whatsapp_messages.json';
-    this.configPath = '/app/data/whatsapp_config.json';
-    this.aiServiceUrl = 'http://ollama:11434';
-    this.fileStorage = fileStorage;
-    this.loadConfig();
-    this.initializeDefaultConfig();
-  }
-
-  private initializeDefaultConfig() {
-    if (!this.config) {
-      this.config = {
-        accessToken: '',
-        phoneNumberId: '',
-        webhookVerifyToken: this.generateWebhookToken(),
-        businessAccountId: '',
-        appId: '',
-        appSecret: '',
-        aiEnabled: false,
-        aiModel: 'mistral:7b',
-        autoReply: false,
-        businessHours: {
-          enabled: false,
-          start: '09:00',
-          end: '18:00',
-          timezone: 'Europe/Rome'
+  private async ensureConfig() {
+    let config = await prisma.whatsappConfig.findFirst();
+    if (!config) {
+      config = await prisma.whatsappConfig.create({
+        data: {
+          accessToken: '',
+          phoneNumberId: '',
+          webhookVerifyToken: crypto.randomBytes(32).toString('hex'),
         },
-        aiPrompt: `Sei l'assistente AI di Studio Gori, uno studio di geometri professionisti che si occupa di pratiche edilizie, catasto, topografia e consulenze tecniche.
-
-RISpondi sempre in modo professionale, cortese e conciso.
-Ambiti di competenza: condoni, SCIA, permessi di costruire, catasto, topografia, APE, consulenze tecniche.
-
-Regole:
-- Fornisci informazioni accurate e utili
-- Se non sai qualcosa, dì che verificherai con un geometra dello studio
-- Mantieni un tono professionale ma amichevole
-- Rispondi in italiano
-- Limita le risposte a 2-3 frasi per essere conciso`,
-        maxContextMessages: 5
-      };
-      this.saveConfig();
-      logger.info('Default WhatsApp config initialized');
+      });
     }
+    return config;
   }
 
-  generateWebhookToken(): string {
-    return crypto.randomBytes(32).toString('hex');
+  async getConfig() {
+    return this.ensureConfig();
   }
 
-  private loadConfig() {
-    try {
-      this.config = this.fileStorage.getWhatsAppConfig();
-      logger.info('WhatsApp Business config loaded');
-    } catch (error) {
-      logger.error('Error loading WhatsApp config:', error);
+  async updateConfig(update: Partial<{ [K in keyof typeof prisma.whatsappConfig]: any }>) {
+    const config = await this.ensureConfig();
+    const {
+      businessHoursEnabled,
+      businessHoursStart,
+      businessHoursEnd,
+      businessHoursTimezone,
+      ...rest
+    } = update as any;
+
+    return prisma.whatsappConfig.update({
+      where: { id: config.id },
+      data: {
+        ...rest,
+        businessHoursEnabled,
+        businessHoursStart,
+        businessHoursEnd,
+        businessHoursTimezone,
+      },
+    });
+  }
+
+  async regenerateWebhookToken() {
+    const config = await this.ensureConfig();
+    const webhookVerifyToken = crypto.randomBytes(32).toString('hex');
+
+    await prisma.whatsappConfig.update({
+      where: { id: config.id },
+      data: { webhookVerifyToken },
+    });
+
+    return webhookVerifyToken;
+  }
+
+  async getStatus() {
+    const config = await this.ensureConfig();
+    return {
+      configured: Boolean(config.accessToken && config.phoneNumberId),
+      aiEnabled: config.aiEnabled,
+      autoReply: config.autoReply,
+      model: config.aiModel,
+      businessHours: {
+        enabled: config.businessHoursEnabled,
+        start: config.businessHoursStart,
+        end: config.businessHoursEnd,
+        timezone: config.businessHoursTimezone,
+      },
+      webhookToken: config.webhookVerifyToken,
+      webhookUrl: `${process.env.API_URL || 'https://vps-3dee2600.vps.ovh.net/api'}/whatsapp/webhook`,
+    };
+  }
+
+  verifyWebhook(verifyToken: string, challenge: string) {
+    return this.ensureConfig().then((config) =>
+      config.webhookVerifyToken === verifyToken ? challenge : null
+    );
+  }
+
+  async getConversations(user: { id: string; role: Role }) {
+    const where = user.role === 'ADMIN'
+      ? {}
+      : {
+          OR: [
+            { assignedToId: user.id },
+            { createdById: user.id },
+            { messages: { some: { authorType: WhatsappAuthorType.CLIENT, authorId: user.id } } },
+          ],
+        };
+
+    const conversations = await prisma.whatsappConversation.findMany({
+      where,
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        messages: {
+          take: 1,
+          orderBy: { timestamp: 'desc' },
+        },
+      },
+    });
+
+    return conversations.map((conv) => ({
+      id: conv.id,
+      contactPhone: conv.contactPhone,
+      contactName: conv.contactName,
+      clientId: conv.clientId,
+      assignedToId: conv.assignedToId,
+      lastMessageAt: conv.lastMessageAt,
+      lastMessageText: conv.lastMessageText,
+      unreadCount: conv.unreadCount,
+      lastMessage: conv.messages[0] || null,
+    }));
+  }
+
+  async getConversationMessages(conversationId: string, limit = 100) {
+    return prisma.whatsappMessage.findMany({
+      where: { conversationId },
+      orderBy: { timestamp: 'asc' },
+      take: limit,
+    });
+  }
+
+  async assignConversation(conversationId: string, userId: string | null) {
+    await prisma.whatsappConversation.update({
+      where: { id: conversationId },
+      data: { assignedToId: userId },
+    });
+  }
+
+  async sendMessage(
+    to: string,
+    text: string,
+    user: { id: string; role: Role } | null,
+    options: SendMessageOptions = {}
+  ) {
+    const config = await this.ensureConfig();
+    if (!config.accessToken || !config.phoneNumberId) {
+      throw new Error('WhatsApp Business non configurato');
     }
-  }
 
-  private saveConfig() {
-    try {
-      this.fileStorage.saveWhatsAppConfig(this.config);
-    } catch (error) {
-      logger.error('Error saving WhatsApp config:', error);
-    }
-  }
+    const conversation = await this.upsertConversationByPhone(to, {
+      contactName: null,
+      createdById: user?.id ?? null,
+    });
 
-  async updateConfig(newConfig: Partial<WhatsAppConfig>): Promise<void> {
-    this.config = { ...this.config, ...newConfig } as WhatsAppConfig;
-    this.saveConfig();
-    logger.info('WhatsApp Business config updated');
-  }
+    const payload = {
+      messaging_product: 'whatsapp',
+      to,
+      type: 'text',
+      text: { body: text },
+    };
 
-  getConfig(): WhatsAppConfig | null {
-    return this.config;
-  }
-
-  async verifyWebhook(verifyToken: string, challenge: string): Promise<string | null> {
-    if (!this.config || this.config.webhookVerifyToken !== verifyToken) {
-      logger.warn('Invalid webhook verify token');
-      return null;
-    }
-    return challenge;
-  }
-
-  async processWebhook(body: any): Promise<void> {
-    try {
-      if (!body.entry || !body.entry[0] || !body.entry[0].changes) {
-        return;
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${config.phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       }
+    );
 
-      const changes = body.entry[0].changes;
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`WhatsApp API error: ${errorText}`);
+    }
+
+    const result = await response.json();
+    const messageId = result.messages?.[0]?.id ?? crypto.randomUUID();
+
+    const message = await prisma.whatsappMessage.create({
+      data: {
+        messageId,
+        conversationId: conversation.id,
+        clientId: conversation.clientId,
+        authorType: options.authorType || WhatsappAuthorType.BUSINESS_USER,
+        authorId: options.authorId ?? user?.id ?? null,
+        content: text,
+        messageType: MessageType.TEXT,
+        processed: true,
+      },
+    });
+
+    await this.touchConversation(conversation.id, text, false);
+
+    return message;
+  }
+
+  async processWebhook(body: IncomingMessagePayload) {
+    const entries = body.entry || [];
+    for (const entry of entries) {
+      const changes = entry.changes || [];
       for (const change of changes) {
-        if (change.field === 'messages' && change.value.messages) {
-          for (const message of change.value.messages) {
-            await this.processIncomingMessage(message, change.value.metadata);
-          }
+        if (change.field !== 'messages' || !change.value.messages) continue;
+
+        const metadata = change.value.metadata;
+        const contacts = change.value.contacts || [];
+
+        for (const message of change.value.messages) {
+          await this.handleIncomingMessage(message, metadata, contacts);
         }
       }
-    } catch (error) {
-      logger.error('Error processing webhook:', error);
     }
   }
 
-  private async processIncomingMessage(message: any, metadata: any): Promise<void> {
-    try {
-      const whatsappMsg: WhatsAppMessage = {
-        id: message.id,
-        from: message.from,
-        to: metadata.phone_number_id,
-        type: message.type,
-        content: this.extractMessageContent(message),
+  private async handleIncomingMessage(message: any, metadata: any, contacts: any[]) {
+    const from = message.from;
+    if (!from) return;
+
+    const contactProfile = contacts.find((contact) => contact.wa_id === from);
+    const contactName = contactProfile?.profile?.name ?? null;
+    const content = this.extractMessageContent(message);
+    const config = await this.ensureConfig();
+
+    const conversation = await this.upsertConversationByPhone(from, {
+      contactName,
+    });
+
+    const prismaMessage = await prisma.whatsappMessage.create({
+      data: {
+        messageId: message.id,
+        conversationId: conversation.id,
+        clientId: conversation.clientId,
+        authorType: WhatsappAuthorType.CLIENT,
+        authorId: null,
+        content,
+        messageType: this.mapMessageType(message.type),
         mediaUrl: this.extractMediaUrl(message),
-        timestamp: new Date().toISOString(),
-        isFromBusiness: false,
-        processed: false
-      };
+        processed: false,
+        timestamp: new Date(),
+      },
+    });
 
-      // Salva messaggio
-      await this.saveMessage(whatsappMsg);
+    await this.touchConversation(conversation.id, content, true);
 
-      // Se AI è abilitata, processa automaticamente
-      if (this.config?.aiEnabled && this.config?.autoReply) {
-        await this.processWithAI(whatsappMsg);
+    if (config.aiEnabled && config.autoReply) {
+      this.queue.enqueue(conversation.id, async () => {
+        await this.processWithAI(conversation.id, prismaMessage, config);
+      });
+    }
+  }
+
+  private async processWithAI(
+    conversationId: string,
+    message: { id: string; content: string },
+    configOverride?: Awaited<ReturnType<typeof this.ensureConfig>>
+  ) {
+    const config = configOverride || (await this.ensureConfig());
+
+    if (config.businessHoursEnabled && !this.isWithinBusinessHours(config)) {
+      const autoReply = `Grazie per il tuo messaggio. Il nostro studio è attualmente chiuso. Orari: ${config.businessHoursStart}-${config.businessHoursEnd}. Ti risponderemo appena possibile.`;
+      await this.sendAIReply(conversationId, autoReply, message.id, config);
+      return;
+    }
+
+    const history = await prisma.whatsappMessage.findMany({
+      where: { conversationId },
+      orderBy: { timestamp: 'desc' },
+      take: config.maxContextMessages,
+    });
+
+    const prompt = this.buildPrompt(config.aiPrompt, message.content, history.reverse());
+
+    try {
+      const response = await fetch(`${this.aiServiceUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: config.aiModel,
+          prompt,
+          stream: false,
+          options: {
+            temperature: 0.7,
+            max_tokens: 256,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI service error: ${response.status}`);
       }
 
-      this.emit('message_received', whatsappMsg);
+      const data = await response.json();
+      const aiText = (data.response || data.text || '').trim();
+
+      if (aiText) {
+        await this.sendAIReply(conversationId, aiText, message.id, config);
+      }
     } catch (error) {
-      logger.error('Error processing incoming message:', error);
+      logger.error('AI response error:', error);
+      await prisma.whatsappMessage.update({
+        where: { id: message.id },
+        data: {
+          processed: true,
+          aiResponse: 'AI non disponibile, un operatore risponderà al più presto.',
+        },
+      });
     }
+  }
+
+  private async sendAIReply(
+    conversationId: string,
+    text: string,
+    relatedMessageId: string,
+    config: Awaited<ReturnType<typeof this.ensureConfig>>
+  ) {
+    const conversation = await prisma.whatsappConversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) return;
+
+    const message = await this.sendMessage(conversation.contactPhone, text, null, {
+      conversationId,
+      authorType: WhatsappAuthorType.BUSINESS_AI,
+      authorId: null,
+    });
+
+    await prisma.whatsappMessage.update({
+      where: { id: relatedMessageId },
+      data: {
+        processed: true,
+        aiResponse: message.content,
+      },
+    });
+
+    await this.touchConversation(conversationId, text, false);
+  }
+
+  private buildPrompt(
+    basePrompt: string,
+    userMessage: string,
+    history: Array<{
+      authorType: WhatsappAuthorType;
+      content: string;
+    }>
+  ) {
+    const context = history
+      .map((msg) => {
+        const speaker =
+          msg.authorType === WhatsappAuthorType.CLIENT
+            ? 'Cliente'
+            : msg.authorType === WhatsappAuthorType.BUSINESS_AI
+            ? 'AI'
+            : 'Studio Gori';
+        return `${speaker}: ${msg.content}`;
+      })
+      .join('\n');
+
+    return `${basePrompt || 'Rispondi in modo professionale.'}\n\nConversazione recente:\n${context}\n\nMessaggio del cliente: ${userMessage}\n\nRisposta:`;
+  }
+
+  private async upsertConversationByPhone(
+    phone: string,
+    options: { contactName?: string | null; createdById?: string | null }
+  ) {
+    return prisma.whatsappConversation.upsert({
+      where: { contactPhone: phone },
+      update: {
+        contactName: options.contactName ?? undefined,
+        updatedAt: new Date(),
+      },
+      create: {
+        contactPhone: phone,
+        contactName: options.contactName,
+        createdById: options.createdById ?? null,
+        lastMessageAt: new Date(),
+        lastMessageText: '',
+      },
+    });
+  }
+
+  private async touchConversation(
+    conversationId: string,
+    lastMessageText: string,
+    incrementUnread: boolean
+  ) {
+    await prisma.whatsappConversation.update({
+      where: { id: conversationId },
+      data: {
+        lastMessageAt: new Date(),
+        lastMessageText,
+        unreadCount: incrementUnread ? { increment: 1 } : undefined,
+      },
+    });
   }
 
   private extractMessageContent(message: any): string {
@@ -211,305 +482,114 @@ Regole:
     }
   }
 
-  private async saveMessage(message: WhatsAppMessage): Promise<void> {
-    try {
-      const messages = this.fileStorage.getWhatsAppMessages();
-      messages.push(message);
-
-      // Mantieni solo gli ultimi 1000 messaggi
-      if (messages.length > 1000) {
-        messages.splice(0, messages.length - 1000);
-      }
-
-      this.fileStorage.saveWhatsAppMessages(messages);
-    } catch (error) {
-      logger.error('Error saving message:', error);
+  private mapMessageType(type: string | undefined): MessageType {
+    switch (type) {
+      case 'audio':
+        return MessageType.AUDIO;
+      case 'image':
+        return MessageType.IMAGE;
+      case 'video':
+        return MessageType.VIDEO;
+      case 'document':
+        return MessageType.DOCUMENT;
+      default:
+        return MessageType.TEXT;
     }
   }
 
-  async getMessages(limit = 50): Promise<WhatsAppMessage[]> {
-    try {
-      const messages = this.fileStorage.getWhatsAppMessages();
-      return messages.slice(-limit).reverse();
-    } catch (error) {
-      logger.error('Error reading messages:', error);
-      return [];
-    }
-  }
-
-  private async processWithAI(message: WhatsAppMessage): Promise<void> {
-    try {
-      if (!this.config?.aiModel) {
-        logger.warn('AI model not configured');
-        return;
-      }
-
-      // Controlla orari di lavoro
-      if (this.config.businessHours.enabled && !this.isWithinBusinessHours()) {
-        const autoReply = `Grazie per il tuo messaggio. Il nostro studio è attualmente chiuso. Orari: ${this.config.businessHours.start}-${this.config.businessHours.end}. Ti risponderemo appena possibile.`;
-        await this.sendMessage(message.from, autoReply);
-        return;
-      }
-
-      // Genera risposta AI con contesto
-      const conversationHistory = await this.getMessages(50); // Get recent messages for context
-      const aiResponse = await this.generateAIResponse(message.content, conversationHistory);
-      if (aiResponse) {
-        await this.sendMessage(message.from, aiResponse);
-
-        // Aggiorna messaggio con risposta AI
-        message.aiResponse = aiResponse;
-        message.processed = true;
-        await this.updateMessage(message);
-      }
-    } catch (error) {
-      logger.error('Error processing with AI:', error);
-    }
-  }
-
-  private async generateAIResponse(userMessage: string, conversationHistory: WhatsAppMessage[] = []): Promise<string | null> {
-    try {
-      // Get recent messages for context
-      const recentMessages = conversationHistory
-        .slice(-(this.config?.maxContextMessages || 5))
-        .map(msg => `${msg.isFromBusiness ? 'Tu' : 'Cliente'}: ${msg.content}`)
-        .join('\n');
-
-      const contextText = recentMessages ? `\nConversazione recente:\n${recentMessages}` : '';
-
-      const prompt = `${this.config?.aiPrompt || 'Rispondi in modo professionale'}
-
-Messaggio del cliente: "${userMessage}"${contextText}
-
-Rispondi in modo naturale mantenendo la conversazione:`;
-
-      const response = await fetch(`${this.aiServiceUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: this.config?.aiModel || 'mistral:7b',
-          prompt: prompt,
-          stream: false,
-          options: {
-            temperature: 0.7,
-            max_tokens: 300
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`AI service error: ${response.status}`);
-      }
-
-      const data = await response.json() as any;
-      return data.response?.trim() || null;
-    } catch (error) {
-      logger.error('Error generating AI response:', error);
-      return 'Grazie per il tuo messaggio. Un nostro operatore ti risponderà al più presto.';
-    }
-  }
-
-  private isWithinBusinessHours(): boolean {
-    if (!this.config?.businessHours.enabled) return true;
+  private isWithinBusinessHours(config: Awaited<ReturnType<typeof this.ensureConfig>>) {
+    if (!config.businessHoursEnabled) return true;
 
     const now = new Date();
-    const currentTime = now.toTimeString().slice(0, 5); // HH:MM
-    
-    return currentTime >= this.config.businessHours.start && 
-           currentTime <= this.config.businessHours.end;
+    const currentTime = now.toTimeString().slice(0, 5);
+
+    return (
+      currentTime >= (config.businessHoursStart || BUSINESS_HOURS_FALLBACK.start) &&
+      currentTime <= (config.businessHoursEnd || BUSINESS_HOURS_FALLBACK.end)
+    );
   }
 
-  async sendMessage(to: string, text: string): Promise<boolean> {
-    try {
-      if (!this.config?.accessToken || !this.config?.phoneNumberId) {
-        throw new Error('WhatsApp Business not configured');
-      }
+  async testConnection() {
+    const config = await this.ensureConfig();
+    if (!config.accessToken || !config.phoneNumberId) {
+      return { success: false, message: 'Access Token e Phone Number ID sono richiesti' };
+    }
 
-      const response = await fetch(`https://graph.facebook.com/v18.0/${this.config.phoneNumberId}/messages`, {
-        method: 'POST',
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${config.phoneNumberId}`,
+      {
         headers: {
-          'Authorization': `Bearer ${this.config.accessToken}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${config.accessToken}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to: to,
-          type: 'text',
-          text: {
-            body: text
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`WhatsApp API error: ${error}`);
       }
+    );
 
-      const result = await response.json() as any;
-
-      // Salva messaggio inviato
-      const sentMessage: WhatsAppMessage = {
-        id: result.messages?.[0]?.id || 'unknown',
-        from: this.config.phoneNumberId,
-        to: to,
-        type: 'text',
-        content: text,
-        timestamp: new Date().toISOString(),
-        isFromBusiness: true,
-        processed: true
-      };
-
-      await this.saveMessage(sentMessage);
-      this.emit('message_sent', sentMessage);
-
-      return true;
-    } catch (error) {
-      logger.error('Error sending message:', error);
-      return false;
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { success: false, message: `Errore connessione WhatsApp API: ${errorText}` };
     }
-  }
 
-  private async updateMessage(message: WhatsAppMessage): Promise<void> {
-    try {
-      const messages = await this.getMessages(1000);
-      const index = messages.findIndex(m => m.id === message.id);
-      if (index !== -1) {
-        messages[index] = message;
-        this.fileStorage.saveWhatsAppMessages(messages);
-      }
-    } catch (error) {
-      logger.error('Error updating message:', error);
-    }
-  }
-
-  async getStatus(): Promise<any> {
+    const data = await response.json();
     return {
-      configured: !!this.config?.accessToken && !!this.config?.phoneNumberId,
-      aiEnabled: this.config?.aiEnabled || false,
-      autoReply: this.config?.autoReply || false,
-      model: this.config?.aiModel || null,
-      businessHours: this.config?.businessHours || null,
-      webhookToken: this.config?.webhookVerifyToken,
-      webhookUrl: `https://vps-3dee2600.vps.ovh.net/api/whatsapp/webhook`
+      success: true,
+      message: `Connessione riuscita! Numero: ${data.display_phone_number || 'N/A'}`,
     };
   }
 
-  async testConnection(): Promise<{ success: boolean; message: string }> {
-    try {
-      if (!this.config?.accessToken || !this.config?.phoneNumberId) {
-        return { success: false, message: 'Access Token e Phone Number ID sono richiesti' };
-      }
-
-      // Test WhatsApp Business API connection
-      const response = await fetch(`https://graph.facebook.com/v18.0/${this.config.phoneNumberId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.config.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        return { success: false, message: `Errore connessione WhatsApp API: ${error}` };
-      }
-
-      const data = await response.json() as any;
-      return {
-        success: true,
-        message: `Connessione riuscita! Numero: ${data.display_phone_number || 'N/A'}`
-      };
-    } catch (error: any) {
-      return { success: false, message: `Errore di rete: ${error.message}` };
-    }
-  }
-
-  async testWebhook(): Promise<{ success: boolean; message: string }> {
-    try {
-      if (!this.config?.webhookVerifyToken) {
-        return { success: false, message: 'Webhook Verify Token non configurato' };
-      }
-
-      // Test if webhook endpoint is accessible
-      const webhookUrl = `https://vps-3dee2600.vps.ovh.net/api/whatsapp/webhook?hub.mode=subscribe&hub.challenge=test&hub.verify_token=${this.config.webhookVerifyToken}`;
-
-      const response = await fetch(webhookUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok && response.status === 200) {
-        const challenge = await response.text();
-        if (challenge === 'test') {
-          return { success: true, message: 'Webhook endpoint configurato correttamente' };
-        }
-      }
-
-      return { success: false, message: 'Webhook endpoint non accessibile o token non valido' };
-    } catch (error: any) {
-      return { success: false, message: `Errore test webhook: ${error.message}` };
-    }
-  }
-
-  async testAI(): Promise<{ success: boolean; message: string }> {
+  async testAI() {
+    const config = await this.ensureConfig();
     try {
       const response = await fetch(`${this.aiServiceUrl}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: this.config?.aiModel || 'mistral:7b',
-          prompt: 'Rispondi solo con "Test AI riuscito"',
+          model: config.aiModel,
+          prompt: 'Rispondi con "Test AI riuscito"',
           stream: false,
-          options: { max_tokens: 10 }
-        })
+          options: { max_tokens: 10 },
+        }),
       });
 
       if (!response.ok) {
         return { success: false, message: `Errore AI service: ${response.status}` };
       }
 
-      const data = await response.json() as any;
+      const data = await response.json();
       return {
         success: true,
-        message: `AI test riuscito! Risposta: ${data?.response?.trim() || 'N/A'}`
+        message: `AI test riuscito! Risposta: ${(data.response || '').trim()}`,
       };
     } catch (error: any) {
       return { success: false, message: `Errore AI: ${error.message}` };
     }
   }
 
-  async getAvailableModels(): Promise<string[]> {
+  async getAvailableModels() {
     try {
       const response = await fetch(`${this.aiServiceUrl}/api/tags`);
-      if (!response.ok) {
-        console.warn('Could not fetch Ollama models:', response.status);
-        return ['mistral:7b', 'llama2', 'phi3']; // Fallback models
-      }
+      if (!response.ok) return ['mistral:7b', 'llama2', 'phi3'];
 
-      const data = await response.json() as any;
-      return data.models?.map((m: any) => m.name) || [];
+      const data = await response.json();
+      return data.models?.map((model: any) => model.name) || ['mistral:7b'];
     } catch (error) {
-      console.warn('Error fetching Ollama models:', error);
-      return ['mistral:7b', 'llama2', 'phi3']; // Fallback models
+      logger.warn('Error fetching Ollama models:', error);
+      return ['mistral:7b', 'llama2', 'phi3'];
     }
   }
 
-  async pullModel(modelName: string): Promise<{ success: boolean; message: string }> {
+  async pullModel(modelName: string) {
     try {
       const response = await fetch(`${this.aiServiceUrl}/api/pull`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: modelName })
+        body: JSON.stringify({ name: modelName }),
       });
 
       if (!response.ok) {
         return { success: false, message: `Errore pull modello: ${response.status}` };
       }
 
-      // Note: The pull endpoint might not return JSON immediately
       return { success: true, message: `Modello ${modelName} scaricato con successo!` };
     } catch (error: any) {
       return { success: false, message: `Errore pull modello: ${error.message}` };

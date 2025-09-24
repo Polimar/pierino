@@ -273,42 +273,24 @@ export async function seedDatabase() {
     });
 
     // Create sample WhatsApp messages
-    await Promise.all([
-      prisma.whatsappMessage.create({
-        data: {
-          messageId: 'msg_001_' + Date.now(),
-          clientId: clients[0].id,
-          fromMe: false,
-          content: 'Buongiorno, volevo sapere a che punto siamo con la pratica SCIA',
-          messageType: 'TEXT',
-          timestamp: new Date('2024-02-20T10:30:00'),
-          isRead: false,
-        },
-      }),
-      prisma.whatsappMessage.create({
-        data: {
-          messageId: 'msg_002_' + Date.now(),
-          clientId: clients[1].id,
-          fromMe: false,
-          content: 'Grazie per il certificato APE, tutto perfetto!',
-          messageType: 'TEXT',
-          timestamp: new Date('2024-01-24T15:45:00'),
-          isRead: true,
-        },
-      }),
-      prisma.whatsappMessage.create({
-        data: {
-          messageId: 'msg_003_' + Date.now(),
-          clientId: clients[2].id,
-          fromMe: false,
-          content: 'Quando possiamo fare il sopralluogo per la villa?',
-          messageType: 'TEXT',
-          timestamp: new Date('2024-02-21T09:15:00'),
-          isRead: false,
-          aiPriority: Priority.HIGH,
-        },
-      }),
-    ]);
+    const conversation = await prisma.whatsappConversation.create({
+      data: {
+        contactPhone: '+390000000001',
+        contactName: clients[0].firstName,
+        clientId: clients[0].id,
+      },
+    });
+
+    await prisma.whatsappMessage.create({
+      data: {
+        messageId: 'msg_seed_' + Date.now(),
+        conversationId: conversation.id,
+        clientId: clients[0].id,
+        authorType: 'CLIENT',
+        content: 'WhatsApp seed message',
+        messageType: 'TEXT',
+      },
+    });
 
     // Create sample notifications
     await Promise.all([
