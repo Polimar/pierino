@@ -92,6 +92,8 @@ class WhatsAppBusinessService extends EventEmitter {
       ...rest
     } = update as any;
 
+    logger.info(`Aggiornamento configurazione: aiEnabled=${rest.aiEnabled}, autoReply=${rest.autoReply}`);
+
     return prisma.whatsappConfig.update({
       where: { id: config.id },
       data: {
@@ -298,10 +300,15 @@ class WhatsAppBusinessService extends EventEmitter {
 
     await this.touchConversation(conversation.id, content, true);
 
+    logger.info(`Messaggio ricevuto da ${from}: aiEnabled=${config.aiEnabled}, autoReply=${config.autoReply}`);
+
     if (config.aiEnabled && config.autoReply) {
+      logger.info(`Avvio elaborazione AI per conversazione ${conversation.id}`);
       this.queue.enqueue(conversation.id, async () => {
         await this.processWithAI(conversation.id, prismaMessage, config);
       });
+    } else {
+      logger.info(`AI non abilitata: aiEnabled=${config.aiEnabled}, autoReply=${config.autoReply}`);
     }
   }
 
@@ -594,6 +601,22 @@ class WhatsAppBusinessService extends EventEmitter {
     } catch (error: any) {
       return { success: false, message: `Errore pull modello: ${error.message}` };
     }
+  }
+
+  async deleteConversation(conversationId: string): Promise<void> {
+    logger.info(`Eliminando conversazione ${conversationId}`);
+
+    // Elimina tutti i messaggi della conversazione
+    await prisma.whatsappMessage.deleteMany({
+      where: { conversationId },
+    });
+
+    // Elimina la conversazione
+    await prisma.whatsappConversation.delete({
+      where: { id: conversationId },
+    });
+
+    logger.info(`Conversazione ${conversationId} eliminata con successo`);
   }
 }
 

@@ -128,6 +128,18 @@ router.post('/send', authenticateToken, async (req, res) => {
   }
 });
 
+// DELETE CONVERSATION
+router.delete('/conversations/:conversationId', authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { conversationId } = req.params;
+    await whatsappBusinessService.deleteConversation(conversationId);
+    res.json({ success: true, message: 'Conversazione eliminata con successo' });
+  } catch (error: any) {
+    console.error('Delete conversation error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // UTILITIES
 router.post('/test-connection', authenticateToken, requireAdmin, async (_req, res) => {
   try {

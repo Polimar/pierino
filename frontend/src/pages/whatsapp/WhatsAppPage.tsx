@@ -119,6 +119,37 @@ export default function WhatsAppPage() {
     [loadMessages]
   );
 
+  const handleDeleteConversation = useCallback(async (conversationId: string) => {
+    if (!confirm('Sei sicuro di voler eliminare questa conversazione? Questa azione non può essere annullata.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/whatsapp/conversations/${conversationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Errore durante l\'eliminazione della conversazione');
+      }
+
+      toast.success('Conversazione eliminata con successo');
+      void loadConversations();
+
+      // Se stavi visualizzando questa conversazione, deselezionala
+      if (selectedConversationId === conversationId) {
+        setSelectedConversationId(null);
+        setMessages([]);
+      }
+    } catch (error: any) {
+      console.error('Error deleting conversation:', error);
+      toast.error(error.message || 'Errore durante l\'eliminazione della conversazione');
+    }
+  }, [selectedConversationId, loadConversations]);
+
   const handleSendMessage = useCallback(
     async (event: React.FormEvent) => {
       event.preventDefault();
@@ -246,6 +277,18 @@ export default function WhatsAppPage() {
                         {conversation.lastMessage?.authorType === 'BUSINESS_AI' && (
                           <Badge variant="secondary">AI</Badge>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteConversation(conversation.id);
+                          }}
+                          title="Elimina conversazione"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
                     <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">

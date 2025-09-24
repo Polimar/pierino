@@ -1152,15 +1152,19 @@ function WhatsAppSettingsSection({
             <div className="flex items-center justify-between border rounded-lg p-4">
               <div className="flex flex-col gap-1">
                 <Label className="flex items-center gap-2">
-                  <Bot className="h-4 w-4" /> Abilita risposte AI
+                  <Bot className="h-4 w-4" /> Abilita risposte AI WhatsApp
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  L AI risponderà automaticamente ai messaggi dei clienti secondo il prompt configurato.
+                  L AI risponderà automaticamente ai messaggi usando il prompt configurato nell'AI Assistant Pro.
                 </p>
-            </div>
+              </div>
               <Switch
-                checked={config.aiEnabled}
-                onCheckedChange={(checked) => onConfigChange({ ...config, aiEnabled: checked })}
+                checked={config.aiEnabled && config.autoReply}
+                onCheckedChange={(checked) => onConfigChange({
+                  ...config,
+                  aiEnabled: checked,
+                  autoReply: checked
+                })}
               />
             </div>
 
