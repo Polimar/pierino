@@ -10,7 +10,7 @@ Applicazione web fullstack per la gestione completa della segreteria di Studio G
 - 👥 **Gestione Clienti** completa con CRUD
 - 📋 **Gestione Pratiche** con stati e priorità
 - 💬 **WhatsApp Integrato** con supporto multimediale
-- 🤖 **AI Assistente Locale** con Ollama
+- 🤖 **AI Assistente Centralizzato** con Ollama e configurazione dinamica
 - 📧 **Email Automatica** con template
 - 📊 **Dashboard Real-time** con notifiche
 - 🏗️ **Deployment Ubuntu** con Docker
@@ -145,7 +145,23 @@ Il database viene automaticamente popolato con utenti di sistema:
 - Player audio integrato per messaggi vocali
 - Galleria immagini per ogni conversazione
 
-### 6. Gestione Email Automatica
+### 6. AI Assistente Centralizzato (AGGIORNATO v1.2!)
+- **Configurazione AI Centralizzata** nella sezione "AI Core" delle Impostazioni
+- **Selezione Dinamica Modelli** da Ollama in tempo reale
+- **Download Nuovi Modelli** con interfaccia dedicata e pull automatico
+- **Prompt Personalizzabili** dalle impostazioni (niente più hardcoded)
+- **Risposte Automatiche Unificate** per WhatsApp, Email e Documenti
+- **AI Assistant Pro** come pagina separata nel sidebar con chat diretta
+- **Framework AI Tools** con 5 tools implementati per function calling:
+  - Tool WhatsApp per invio messaggi automatici
+  - Tool Calendario per fissare appuntamenti
+  - Tool Ricerca Clienti nel database
+  - Tool Ricerca Documenti con OCR e trascrizioni
+  - Tool Gestione Pratiche (crea, aggiorna, cerca)
+- **Orari di Lavoro** configurabili per risposte automatiche
+- **Context Management** avanzato per conversazioni multiple
+
+### 7. Gestione Email Automatica
 - Configurazione account email multipli
 - Ricezione automatica email (IMAP)
 - Invio email (SMTP) dal gestionale
@@ -156,7 +172,7 @@ Il database viene automaticamente popolato con utenti di sistema:
 - Filtri automatici per categorizzazione
 - Backup email nel database
 
-### 7. Calendario e Appuntamenti
+### 8. Calendario e Appuntamenti
 - Calendario interattivo mensile/settimanale/giornaliero
 - Appuntamenti con clienti
 - Promemoria automatici (email/WhatsApp)
@@ -164,7 +180,7 @@ Il database viene automaticamente popolato con utenti di sistema:
 - Blocchi orari e disponibilità
 - Conferma appuntamenti automatica
 
-### 8. Gestione Documenti
+### 9. Gestione Documenti
 - Upload e organizzazione file per cliente/pratica
 - Generazione automatica documenti (contratti, lettere, etc.)
 - Template personalizzabili
@@ -173,7 +189,7 @@ Il database viene automaticamente popolato con utenti di sistema:
 - Ricerca full-text nei documenti
 - Antivirus integrato per upload
 
-### 9. Sistema di Notifiche
+### 10. Sistema di Notifiche
 - Notifiche push in-app
 - Email automatiche per scadenze
 - Messaggi WhatsApp automatici
@@ -181,7 +197,7 @@ Il database viene automaticamente popolato con utenti di sistema:
 - Promemoria appuntamenti
 - Centro notifiche unificato
 
-### 10. Reporting e Analytics
+### 11. Reporting e Analytics
 - **AI Locale con Ollama**: 
   - Installazione e gestione Ollama integrata
   - Modelli locali (Llama 3.1, Mistral, Codellama)
@@ -441,10 +457,13 @@ enum PracticeStatus {
 - `POST /api/whatsapp/ocr` - Estrai testo da immagine
 - `GET /api/whatsapp/media/:messageId` - Download media
 
-#### AI Assistente
+#### AI Assistente (AGGIORNATO v1.2!)
+- `GET /api/ai/models` - Lista modelli disponibili da Ollama in tempo reale
+- `POST /api/ai/pull-model` - Scarica nuovo modello da Ollama
+- `POST /api/ai/chat` - Chat diretta con AI (configurazione dinamica)
+- `POST /api/ai/test-tools` - Test framework AI Tools con function calling
 - `POST /api/ai/configure` - Configura provider AI
 - `GET /api/ai/config` - Ottieni configurazione AI
-- `POST /api/ai/chat` - Chat con AI assistente
 - `POST /api/ai/analyze-message` - Analizza messaggio WhatsApp
 - `POST /api/ai/generate-response` - Genera risposta suggerita
 - `POST /api/ai/transcribe-audio` - Trascrivi file audio
@@ -484,11 +503,11 @@ src/
 │   ├── dashboard/       # Main dashboard
 │   ├── clients/         # Client management
 │   ├── practices/       # Practice management
-│   ├── whatsapp/        # WhatsApp interface
+│   ├── whatsapp/        # WhatsApp conversations only (config moved)
+│   ├── ai-assistant-pro/# AI Assistant Pro direct chat (NEW!)
 │   ├── email/           # Email management
-│   ├── ai-assistant/    # AI assistant interface
 │   ├── media/           # Media gallery and management
-│   └── settings/        # Configuration
+│   └── settings/        # Configuration (AI Core centralized)
 ├── hooks/               # Custom React hooks
 ├── services/            # API services
 │   ├── ai/              # AI service integrations
@@ -819,7 +838,13 @@ volumes:
 - [x] **Trascrizione automatica messaggi vocali**
 - [x] **OCR automatico per immagini WhatsApp**
 - [x] **AI Ollama locale funzionante e testato**
-- [ ] **AI assistente per analisi messaggi e generazione risposte**
+- [x] **Configurazione AI centralizzata nel tab AI Core**
+- [x] **Selezione dinamica modelli da Ollama**
+- [x] **Download nuovi modelli con interfaccia dedicata**
+- [x] **AI Assistant Pro separato nel sidebar**
+- [x] **Framework AI Tools con 5 tools implementati**
+- [x] **Prompt personalizzabili dalle impostazioni**
+- [x] **Risposte automatiche unificate per tutti i servizi**
 - [ ] **Configurazione API esterne AI (OpenAI, Claude, Gemini)**
 - [ ] Email ricezione/invio automatico con analisi AI
 - [ ] Dashboard informativa e real-time con insights AI
@@ -858,12 +883,28 @@ curl http://localhost:3000/api/whatsapp/status \
 
 ### Ollama AI
 ```bash
-# Test modello AI
+# Test modello AI (diretto Ollama)
 curl http://localhost:11434/api/generate \
   -d '{"model":"mistral:7b","prompt":"Test","stream":false}'
 
-# Lista modelli disponibili
+# Lista modelli disponibili (diretto Ollama)
 curl http://localhost:11434/api/tags
+
+# Test AI tramite API Studio Gori
+curl -X POST http://localhost:3000/api/ai/chat \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Test AI", "model": "mistral:7b", "temperature": 0.7}'
+
+# Lista modelli tramite API Studio Gori
+curl -X GET http://localhost:3000/api/ai/models \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Download nuovo modello
+curl -X POST http://localhost:3000/api/ai/pull-model \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"modelName": "llama3.1:8b"}'
 ```
 
 ### Database
@@ -938,8 +979,10 @@ npm run health           # Health check
 - ✅ **Gestione Utenti Dinamica** - CRUD completo, permessi, password, profili
 - ✅ **Sistema Password Dinamico** - Cambio password sicuro e granulare
 - ✅ **WhatsApp Business API** - OAuth, webhook, test, AI integration
-- ✅ **AI Assistente Ollama** - Locale attivo con Mistral 7B
-- ✅ **Frontend WhatsApp** - Interfaccia completa con test integrati
+- ✅ **AI Assistente Centralizzato** - Configurazione AI Core, modelli dinamici, tools
+- ✅ **AI Assistant Pro** - Chat diretta separata nel sidebar
+- ✅ **Framework AI Tools** - 5 tools per function calling implementati
+- ✅ **Frontend WhatsApp** - Solo conversazioni (configurazione spostata)
 - ✅ **Docker Setup** - Deploy ready con tutti i servizi
 - ✅ **Ubuntu Deployment** - Script automatico + documentazione
 - 🔄 **CRUD Pratiche** - In sviluppo
@@ -985,8 +1028,20 @@ npm run health           # Health check
 - **Creazione clienti** da contatti WhatsApp
 - **Storage sicuro** media con organizzazione automatica
 
-### ✅ AI Assistente Completo
-- **Ollama locale attivo** (privacy-first) con modelli Llama 3.1 e Mistral 7B
+### ✅ AI Assistente Centralizzato (AGGIORNATO v1.2!)
+- **Configurazione AI Centralizzata** nella sezione "AI Core" delle Impostazioni
+- **Selezione Dinamica Modelli** da Ollama in tempo reale (niente più hardcoded)
+- **Download Nuovi Modelli** con interfaccia dedicata e pull automatico
+- **Prompt Personalizzabili** dalle impostazioni database (niente più hardcoded)
+- **AI Assistant Pro Separato** come pagina dedicata nel sidebar con chat diretta
+- **Framework AI Tools Completo** con 5 tools implementati per function calling:
+  - Tool WhatsApp per invio messaggi automatici
+  - Tool Calendario per fissare appuntamenti  
+  - Tool Ricerca Clienti nel database con filtri avanzati
+  - Tool Ricerca Documenti con OCR e trascrizioni
+  - Tool Gestione Pratiche (crea, aggiorna, cerca, verifica scadenze)
+- **Risposte Automatiche Unificate** per WhatsApp, Email e Documenti
+- **Ollama locale attivo** (privacy-first) con modelli Mistral 7B e Mistral Small 3.1
 - **Test AI integrato** per validazione modelli e connessione
 - **API esterne opzionali**: OpenAI GPT-4, Anthropic Claude, Google Gemini
 - **Analisi automatica messaggi WhatsApp** (urgenza, sentiment, categoria)
@@ -994,8 +1049,7 @@ npm run health           # Health check
 - **Classificazione automatica tipo pratiche** con AI
 - **Sistema di fallback robusto** locale → cloud
 - **Orari di lavoro AI** configurabili per risposte automatiche
-- **Tracciamento conversazioni** con persistenza JSON
-- **Context management** avanzato per conversazioni WhatsApp
+- **Context management** avanzato per conversazioni multiple
 
 ### ✅ Infrastructure
 - **Docker Compose** completo con tutti i servizi
@@ -1127,7 +1181,44 @@ MIT License - Vedi [LICENSE](./LICENSE) file per dettagli.
 
 **Sviluppato con ❤️ per modernizzare gli studi tecnici italiani**
 
-*Versione 1.1.0 - Gennaio 2025*
+*Versione 1.2.0 - Settembre 2025*
+
+## 📅 Changelog v1.2.0
+
+### 🤖 **AI Assistente Centralizzato (NOVITÀ MAGGIORE!)**
+- ✅ **Configurazione AI spostata** dal tab WhatsApp alla sezione "AI Core" delle Impostazioni
+- ✅ **Selezione dinamica modelli** da Ollama in tempo reale (niente più hardcoded)
+- ✅ **Download nuovi modelli** con interfaccia dedicata per pull automatico
+- ✅ **Prompt personalizzabili** dalle impostazioni database invece di hardcoded
+- ✅ **AI Assistant Pro separato** come pagina dedicata nel sidebar con chat diretta
+- ✅ **Framework AI Tools completo** con 5 tools implementati per function calling:
+  - Tool WhatsApp per invio messaggi automatici con contesto
+  - Tool Calendario per fissare appuntamenti intelligenti
+  - Tool Ricerca Clienti nel database con filtri avanzati
+  - Tool Ricerca Documenti con OCR e trascrizioni
+  - Tool Gestione Pratiche (crea, aggiorna, cerca, verifica scadenze)
+- ✅ **Risposte automatiche unificate** per WhatsApp, Email e Documenti
+- ✅ **Orari di lavoro AI** configurabili per risposte automatiche
+- ✅ **Context management** avanzato per conversazioni multiple
+- ✅ **API endpoints nuovi**: `/api/ai/models`, `/api/ai/pull-model`, `/api/ai/test-tools`
+
+### 🎨 **Refactor Frontend WhatsApp**
+- 🔄 **Tab WhatsApp semplificato** - mostra solo conversazioni, configurazione spostata
+- 🔧 **Interfaccia AI unificata** - tutta la configurazione AI in un posto
+- 📱 **Mobile responsive** migliorato per nuova struttura
+- 🧪 **Test Puppeteer** completi per nuove funzionalità
+
+### 🔧 **Miglioramenti Architettura**
+- 🏗️ **Backend modulare** - servizi AI separati e riutilizzabili
+- 🔗 **API consistenti** - endpoint standardizzati per AI
+- 📊 **Configurazione centralizzata** - tutto nel database, niente hardcoded
+- 🧪 **Test completi** - API e frontend verificati
+
+### 🐛 **Bug Fix**
+- 🐛 Risolto problema modelli AI hardcoded
+- 🐛 Sistemata configurazione AI dispersa
+- 🐛 Corretta gestione prompt personalizzati
+- 🐛 Fix timeout AI con ottimizzazioni
 
 ## 📅 Changelog v1.1.0
 
