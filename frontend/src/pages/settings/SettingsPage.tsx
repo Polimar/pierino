@@ -35,6 +35,7 @@ interface BaseSettings {
     model: string;
     temperature: number;
     maxTokens: number;
+    timeout: number;
     prompt: string;
     whatsappEnabled: boolean;
     emailEnabled: boolean;
@@ -747,7 +748,7 @@ function AICoreSettingsSection({
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Modello e parametri */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <Label>Modello AI</Label>
               <Select value={form.model} onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}>
@@ -782,6 +783,20 @@ function AICoreSettingsSection({
                 value={form.maxTokens}
                 onChange={(e) => setForm((prev) => ({ ...prev, maxTokens: parseInt(e.target.value) || 2048 }))}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Timeout (secondi)</Label>
+              <Input
+                type="number"
+                min="5"
+                max="300"
+                value={Math.round(form.timeout / 1000)}
+                onChange={(e) => setForm((prev) => ({ ...prev, timeout: (parseInt(e.target.value) || 30) * 1000 }))}
+                placeholder="30"
+              />
+              <p className="text-xs text-muted-foreground">
+                Tempo massimo attesa risposta AI (5-300s)
+              </p>
             </div>
           </div>
 

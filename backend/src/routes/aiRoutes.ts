@@ -8,7 +8,7 @@ const router = Router();
 // Chat endpoint for AI Assistant Pro
 router.post('/chat', authenticateToken, async (req, res) => {
   try {
-    const { message, model, temperature, prompt } = req.body;
+    const { message, model, temperature, prompt, timeout } = req.body;
 
     if (!message || typeof message !== 'string') {
       return res.status(400).json({
@@ -35,6 +35,7 @@ router.post('/chat', authenticateToken, async (req, res) => {
     const config = {
       model: validModel,
       temperature: temperature || 0.7,
+      timeout: timeout || 30000,
       prompt: prompt || 'Sei un assistente AI professionale. Rispondi in modo chiaro e utile.',
       ollamaEndpoint: 'http://ollama:11434'
     };

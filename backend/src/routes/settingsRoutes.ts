@@ -12,6 +12,7 @@ type AppSettings = {
     model: string;
     temperature: number;
     maxTokens: number;
+    timeout: number;
     prompt: string;
     whatsappEnabled: boolean;
     emailEnabled: boolean;
@@ -43,6 +44,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     model: 'mistral:7b',
     temperature: 0.7,
     maxTokens: 2048,
+    timeout: 30000,
     prompt: "Sei l'assistente AI di Studio Gori, studio tecnico di geometri. Rispondi in modo professionale, conciso e in italiano.",
     whatsappEnabled: false,
     emailEnabled: false,
@@ -174,7 +176,8 @@ router.put('/ai', authenticateToken, requireAdmin, async (req, res) => {
     const { 
       model, 
       temperature, 
-      maxTokens, 
+      maxTokens,
+      timeout,
       prompt,
       whatsappEnabled,
       emailEnabled,
@@ -209,6 +212,9 @@ router.put('/ai', authenticateToken, requireAdmin, async (req, res) => {
     if (typeof maxTokens === 'number' && (maxTokens < 100 || maxTokens > 8192)) {
       return res.status(400).json({ success: false, message: 'MaxTokens deve essere tra 100 e 8192' });
     }
+    if (typeof timeout === 'number' && (timeout < 5000 || timeout > 300000)) {
+      return res.status(400).json({ success: false, message: 'Timeout deve essere tra 5 e 300 secondi (5000-300000 ms)' });
+    }
 
     const current = await readSettings();
     const updated: AppSettings = {
@@ -218,6 +224,7 @@ router.put('/ai', authenticateToken, requireAdmin, async (req, res) => {
         model: model ?? current.ai.model,
         temperature: temperature ?? current.ai.temperature,
         maxTokens: maxTokens ?? current.ai.maxTokens,
+        timeout: timeout ?? current.ai.timeout,
         prompt: prompt ?? current.ai.prompt,
         whatsappEnabled: whatsappEnabled ?? current.ai.whatsappEnabled,
         emailEnabled: emailEnabled ?? current.ai.emailEnabled,

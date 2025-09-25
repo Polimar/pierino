@@ -38,6 +38,7 @@ export default function AIAssistantProPage() {
       let aiConfig = {
         model: 'mistral:7b',
         temperature: 0.7,
+        timeout: 30000,
         prompt: 'Sei un assistente AI professionale per uno studio di geometra. Rispondi in modo chiaro e utile.',
       };
 
@@ -47,17 +48,19 @@ export default function AIAssistantProPage() {
           aiConfig = {
             model: settingsData.data.ai.model || aiConfig.model,
             temperature: settingsData.data.ai.temperature || aiConfig.temperature,
+            timeout: settingsData.data.ai.timeout || aiConfig.timeout,
             prompt: settingsData.data.ai.prompt || aiConfig.prompt,
           };
         }
       }
 
-      const response = await apiClient.post('/ai/chat', {
-        message: aiChatMessage,
-        model: aiConfig.model,
-        temperature: aiConfig.temperature,
-        prompt: aiConfig.prompt,
-      });
+        const response = await apiClient.post('/ai/chat', {
+          message: aiChatMessage,
+          model: aiConfig.model,
+          temperature: aiConfig.temperature,
+          timeout: aiConfig.timeout || 30000,
+          prompt: aiConfig.prompt,
+        });
 
       const data = response.data;
 

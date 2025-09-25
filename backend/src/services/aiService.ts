@@ -202,7 +202,7 @@ Se non hai bisogno di usare tools, rispondi normalmente in italiano.`
           num_predict: 2048,
         },
       }, {
-        timeout: 30000, // Ridotto a 30 secondi
+        timeout: 30000, // Mantenuto fisso per tools
       });
 
       const responseContent = response.data.message.content;
@@ -297,7 +297,7 @@ Se non hai bisogno di usare tools, rispondi normalmente in italiano.`
           max_tokens: config.maxTokens || 2048,
         },
       }, {
-        timeout: 30000, // Ridotto a 30 secondi
+        timeout: config.timeout || 30000, // Timeout configurabile, default 30 secondi
       });
 
       return {
