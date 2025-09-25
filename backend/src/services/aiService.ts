@@ -69,8 +69,8 @@ class AIService {
         ollamaModel: chatConfig.model || 'mistral:7b',
         temperature: chatConfig.temperature || 0.7,
       });
-    } catch (error) {
-      console.error('AI Chat with config error:', error); // Changed from logger.error
+    } catch (error: any) {
+      console.error('AI Chat with config error:', error.message || error);
       throw error;
     }
   }
@@ -217,7 +217,7 @@ Se non hai bisogno di usare tools, rispondi normalmente in italiano.`
       };
 
     } catch (error: any) {
-      console.error('Error in chatWithOllamaTools:', error);
+      console.error('Error in chatWithOllamaTools:', error.message || error);
       throw error;
     }
   }
@@ -303,9 +303,19 @@ Se non hai bisogno di usare tools, rispondi normalmente in italiano.`
       return {
         content: response.data.message.content,
       };
-    } catch (error) {
-      console.error('Error with Ollama chat:', error);
-      throw new Error('Errore nella comunicazione con Ollama');
+    } catch (error: any) {
+      // Log solo il messaggio di errore, non l'oggetto completo per evitare circular reference
+      console.error('Error with Ollama chat:', error.message || error);
+      
+      if (error.code === 'ECONNREFUSED') {
+        throw new Error('Servizio Ollama non raggiungibile');
+      } else if (error.code === 'ENOTFOUND') {
+        throw new Error('Host Ollama non trovato');
+      } else if (error.code === 'TIMEOUT' || error.message?.includes('timeout')) {
+        throw new Error('Timeout nella comunicazione con Ollama (>30s)');
+      } else {
+        throw new Error(`Errore Ollama: ${error.message || 'Errore sconosciuto'}`);
+      }
     }
   }
 

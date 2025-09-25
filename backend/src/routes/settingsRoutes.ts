@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import axios from 'axios';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
@@ -170,9 +171,37 @@ router.put('/general', authenticateToken, requireAdmin, async (req, res) => {
 
 router.put('/ai', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { model, temperature, maxTokens } = req.body;
-    if (model && !['llama3.2', 'llama3.1', 'mistral', 'codellama'].includes(model)) {
-      return res.status(400).json({ success: false, message: 'Modello AI non supportato' });
+    const { 
+      model, 
+      temperature, 
+      maxTokens, 
+      prompt,
+      whatsappEnabled,
+      emailEnabled,
+      documentsEnabled,
+      autoReply,
+      businessHoursEnabled,
+      businessHoursStart,
+      businessHoursEnd,
+      businessHoursTimezone,
+      maxContextMessages
+    } = req.body;
+    
+    // Valida modello contro i modelli disponibili in Ollama
+    if (model) {
+      try {
+        const modelsResponse = await axios.get('http://ollama:11434/api/tags');
+        const availableModels = modelsResponse.data.models?.map((m: any) => m.name) || [];
+        
+        if (!availableModels.includes(model)) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `Modello AI non supportato. Modelli disponibili: ${availableModels.join(', ')}` 
+          });
+        }
+      } catch (ollamaError) {
+        console.warn('Could not validate model against Ollama, accepting any model');
+      }
     }
     if (typeof temperature === 'number' && (temperature < 0 || temperature > 2)) {
       return res.status(400).json({ success: false, message: 'Temperature deve essere tra 0 e 2' });
@@ -185,9 +214,20 @@ router.put('/ai', authenticateToken, requireAdmin, async (req, res) => {
     const updated: AppSettings = {
       ...current,
       ai: {
+        ...current.ai,
         model: model ?? current.ai.model,
         temperature: temperature ?? current.ai.temperature,
         maxTokens: maxTokens ?? current.ai.maxTokens,
+        prompt: prompt ?? current.ai.prompt,
+        whatsappEnabled: whatsappEnabled ?? current.ai.whatsappEnabled,
+        emailEnabled: emailEnabled ?? current.ai.emailEnabled,
+        documentsEnabled: documentsEnabled ?? current.ai.documentsEnabled,
+        autoReply: autoReply ?? current.ai.autoReply,
+        businessHoursEnabled: businessHoursEnabled ?? current.ai.businessHoursEnabled,
+        businessHoursStart: businessHoursStart ?? current.ai.businessHoursStart,
+        businessHoursEnd: businessHoursEnd ?? current.ai.businessHoursEnd,
+        businessHoursTimezone: businessHoursTimezone ?? current.ai.businessHoursTimezone,
+        maxContextMessages: maxContextMessages ?? current.ai.maxContextMessages,
       },
     };
 
@@ -195,11 +235,7 @@ router.put('/ai', authenticateToken, requireAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      data: {
-        model: updated.ai.model,
-        temperature: updated.ai.temperature,
-        maxTokens: updated.ai.maxTokens,
-      },
+      data: updated.ai,
     });
   } catch (error) {
     logger.error('Error updating AI settings', error);
