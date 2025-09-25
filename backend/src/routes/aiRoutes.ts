@@ -17,10 +17,26 @@ router.post('/chat', authenticateToken, async (req, res) => {
       });
     }
 
+    // Verifica che il modello sia disponibile, altrimenti usa fallback
+    let validModel = model || 'mistral:7b';
+    try {
+      const modelsResponse = await axios.get('http://ollama:11434/api/tags');
+      const availableModels = modelsResponse.data.models?.map((m: any) => m.name) || [];
+      
+      if (model && !availableModels.includes(model)) {
+        console.warn(`Model ${model} not found, using fallback mistral:7b`);
+        validModel = 'mistral:7b';
+      }
+    } catch (modelCheckError) {
+      console.warn('Could not check available models, using fallback mistral:7b');
+      validModel = 'mistral:7b';
+    }
+
     const config = {
-      model: model || 'mistral:7b',
+      model: validModel,
       temperature: temperature || 0.7,
       prompt: prompt || 'Sei un assistente AI professionale. Rispondi in modo chiaro e utile.',
+      ollamaEndpoint: 'http://ollama:11434'
     };
 
     console.log(`AI Chat request: model=${config.model}, temp=${config.temperature}, message length=${message.length}`);

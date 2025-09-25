@@ -6,8 +6,27 @@ const logFormat = winston.format.combine(
   winston.format.errors({ stack: true }),
   winston.format.json(),
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
+    const safeStringify = (obj: any) => {
+      try {
+        return JSON.stringify(obj, (key, value) => {
+          if (value && typeof value === 'object' && value.constructor === Object) {
+            // Rimuovi proprietà che potrebbero causare riferimenti circolari
+            const cleaned = { ...value };
+            delete cleaned.socket;
+            delete cleaned.req;
+            delete cleaned.request;
+            delete cleaned._httpMessage;
+            return cleaned;
+          }
+          return value;
+        }, 2);
+      } catch (error) {
+        return '[Circular Reference]';
+      }
+    };
+
     return `${timestamp} [${level.toUpperCase()}]: ${message} ${
-      Object.keys(meta).length ? JSON.stringify(meta, null, 2) : ''
+      Object.keys(meta).length ? safeStringify(meta) : ''
     }`;
   })
 );
@@ -42,8 +61,27 @@ if (process.env.NODE_ENV !== 'production') {
         winston.format.colorize(),
         winston.format.simple(),
         winston.format.printf(({ timestamp, level, message, ...meta }) => {
+          const safeStringify = (obj: any) => {
+            try {
+              return JSON.stringify(obj, (key, value) => {
+                if (value && typeof value === 'object' && value.constructor === Object) {
+                  // Rimuovi proprietà che potrebbero causare riferimenti circolari
+                  const cleaned = { ...value };
+                  delete cleaned.socket;
+                  delete cleaned.req;
+                  delete cleaned.request;
+                  delete cleaned._httpMessage;
+                  return cleaned;
+                }
+                return value;
+              }, 2);
+            } catch (error) {
+              return '[Circular Reference]';
+            }
+          };
+
           return `${timestamp} [${level}]: ${message} ${
-            Object.keys(meta).length ? JSON.stringify(meta, null, 2) : ''
+            Object.keys(meta).length ? safeStringify(meta) : ''
           }`;
         })
       ),

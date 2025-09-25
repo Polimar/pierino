@@ -70,7 +70,7 @@ class AIService {
         temperature: chatConfig.temperature || 0.7,
       });
     } catch (error) {
-      logger.error('AI Chat with config error:', error);
+      console.error('AI Chat with config error:', error); // Changed from logger.error
       throw error;
     }
   }
@@ -202,7 +202,7 @@ Se non hai bisogno di usare tools, rispondi normalmente in italiano.`
           num_predict: 2048,
         },
       }, {
-        timeout: 60000,
+        timeout: 30000, // Ridotto a 30 secondi
       });
 
       const responseContent = response.data.message.content;
@@ -297,14 +297,14 @@ Se non hai bisogno di usare tools, rispondi normalmente in italiano.`
           max_tokens: config.maxTokens || 2048,
         },
       }, {
-        timeout: config.AI_RESPONSE_TIMEOUT,
+        timeout: 30000, // Ridotto a 30 secondi
       });
 
       return {
         content: response.data.message.content,
       };
     } catch (error) {
-      logger.error('Error with Ollama chat:', error);
+      console.error('Error with Ollama chat:', error);
       throw new Error('Errore nella comunicazione con Ollama');
     }
   }
@@ -342,7 +342,7 @@ Se non hai bisogno di usare tools, rispondi normalmente in italiano.`
         } : undefined,
       };
     } catch (error) {
-      logger.error('Error with OpenAI chat:', error);
+      console.error('Error with OpenAI chat:', error);
       throw new Error('Errore nella comunicazione con OpenAI');
     }
   }
@@ -375,7 +375,7 @@ Se non hai bisogno di usare tools, rispondi normalmente in italiano.`
         content: response.text(),
       };
     } catch (error) {
-      logger.error('Error with Gemini chat:', error);
+      console.error('Error with Gemini chat:', error);
       throw new Error('Errore nella comunicazione con Gemini');
     }
   }
@@ -548,7 +548,7 @@ Fornisci oggetto e corpo dell'email separati da "---"`
 
       return true;
     } catch (error) {
-      logger.error(`AI connection test failed for ${provider}:`, error);
+      console.error(`AI connection test failed for ${provider}:`, error);
       return false;
     }
   }
