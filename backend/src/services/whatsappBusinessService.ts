@@ -4,6 +4,8 @@ import fetch from 'node-fetch';
 import { MessageType, Role, WhatsappAuthorType } from '@prisma/client';
 import { prisma } from '../config/database';
 import { createLogger } from '../utils/logger';
+import { aiService } from './aiService';
+import { AIToolContext, ChatMessageWithTools } from '../types/aiTypes';
 
 type IncomingMessagePayload = {
   entry?: Array<{
@@ -325,46 +327,103 @@ class WhatsAppBusinessService extends EventEmitter {
       return;
     }
 
-    const history = await prisma.whatsappMessage.findMany({
-      where: { conversationId },
-      orderBy: { timestamp: 'desc' },
-      take: config.maxContextMessages,
-    });
-
-    const prompt = this.buildPrompt(config.aiPrompt, message.content, history.reverse());
-
     try {
-      const response = await fetch(`${this.aiServiceUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: config.aiModel,
-          prompt,
-          stream: false,
-          options: {
-            temperature: 0.7,
-            max_tokens: 256,
-          },
-        }),
+      // Ottieni il contesto della conversazione
+      const conversation = await prisma.whatsappConversation.findUnique({
+        where: { id: conversationId },
+        include: {
+          client: true,
+          assignedTo: true
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`AI service error: ${response.status}`);
+      // Costruisci la storia della conversazione
+      const history = await prisma.whatsappMessage.findMany({
+        where: { conversationId },
+        orderBy: { timestamp: 'desc' },
+        take: config.maxContextMessages,
+        include: {
+          author: true
+        }
+      });
+
+      // Prepara i messaggi per l'AI con tools
+      const messages: ChatMessageWithTools[] = [];
+
+      // Aggiungi la storia della conversazione
+      for (const msg of history.reverse()) {
+        if (msg.authorType === 'USER') {
+          messages.push({
+            role: 'user',
+            content: msg.content
+          });
+        } else if (msg.authorType === 'AI' && msg.aiResponse) {
+          messages.push({
+            role: 'assistant',
+            content: msg.aiResponse
+          });
+        }
       }
 
-      const data = await response.json();
-      const aiText = (data.response || data.text || '').trim();
+      // Aggiungi il messaggio corrente
+      messages.push({
+        role: 'user',
+        content: message.content
+      });
 
-      if (aiText) {
-        await this.sendAIReply(conversationId, aiText, message.id, config);
+      // Prepara il contesto per l'AI
+      const aiContext: AIToolContext = {
+        conversationId,
+        userId: conversation?.assignedToId || undefined,
+        userPhone: conversation?.contactPhone || '',
+        messageHistory: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date().toISOString()
+        }))
+      };
+
+      logger.info(`Processing message with AI tools. Context: conversationId=${conversationId}, phone=${aiContext.userPhone}`);
+
+      // Usa l'AI con tools
+      const aiResponse = await aiService.chatWithTools(messages, aiContext);
+
+      // Estrai il contenuto della risposta pulito
+      let responseText = aiResponse.content;
+      
+      // Rimuovi eventuali tool calls dal testo visibile all'utente
+      responseText = responseText.replace(/TOOL_CALL:.*?(?=\n|$)/gi, '');
+      responseText = responseText.replace(/PARAMETERS:.*?(?=\n|$)/gi, '');
+      responseText = responseText.replace(/REASON:.*?(?=\n|$)/gi, '');
+      responseText = responseText.trim();
+
+      // Se non c'è testo dopo la pulizia, usa un messaggio di default
+      if (!responseText) {
+        responseText = 'Ho elaborato la tua richiesta. È stata completata con successo.';
       }
-    } catch (error) {
+
+      // Invia la risposta AI
+      await this.sendAIReply(conversationId, responseText, message.id, config);
+
+      // Log del successo
+      logger.info(`AI processed message successfully. Tools used: ${aiResponse.toolCalls ? aiResponse.toolCalls.length : 0}`);
+
+    } catch (error: any) {
       logger.error('AI response error:', error);
+      
+      // Fallback a risposta generica
+      let fallbackMessage = 'Mi dispiace, al momento non riesco a elaborare la tua richiesta. Un operatore ti risponderà al più presto.';
+      
+      // Se è un errore di configurazione, usa un messaggio più specifico
+      if (error.message?.includes('configuration') || error.message?.includes('model')) {
+        fallbackMessage = 'Il servizio AI è temporaneamente non disponibile. Ti risponderemo appena possibile.';
+      }
+
       await prisma.whatsappMessage.update({
         where: { id: message.id },
         data: {
           processed: true,
-          aiResponse: 'AI non disponibile, un operatore risponderà al più presto.',
+          aiResponse: fallbackMessage,
         },
       });
     }

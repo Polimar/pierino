@@ -11,6 +11,16 @@ type AppSettings = {
     model: string;
     temperature: number;
     maxTokens: number;
+    prompt: string;
+    whatsappEnabled: boolean;
+    emailEnabled: boolean;
+    documentsEnabled: boolean;
+    autoReply: boolean;
+    businessHoursEnabled: boolean;
+    businessHoursStart: string;
+    businessHoursEnd: string;
+    businessHoursTimezone: string;
+    maxContextMessages: number;
   };
   email: {
     provider: string;
@@ -29,9 +39,19 @@ type AppSettings = {
 
 const DEFAULT_SETTINGS: AppSettings = {
   ai: {
-    model: 'llama3.2',
+    model: 'mistral:7b',
     temperature: 0.7,
     maxTokens: 2048,
+    prompt: "Sei l'assistente AI di Studio Gori, studio tecnico di geometri. Rispondi in modo professionale, conciso e in italiano.",
+    whatsappEnabled: false,
+    emailEnabled: false,
+    documentsEnabled: false,
+    autoReply: false,
+    businessHoursEnabled: false,
+    businessHoursStart: '09:00',
+    businessHoursEnd: '18:00',
+    businessHoursTimezone: 'Europe/Rome',
+    maxContextMessages: 5,
   },
   email: {
     provider: 'gmail',

@@ -35,6 +35,16 @@ interface BaseSettings {
     model: string;
     temperature: number;
     maxTokens: number;
+    prompt: string;
+    whatsappEnabled: boolean;
+    emailEnabled: boolean;
+    documentsEnabled: boolean;
+    autoReply: boolean;
+    businessHoursEnabled: boolean;
+    businessHoursStart: string;
+    businessHoursEnd: string;
+    businessHoursTimezone: string;
+    maxContextMessages: number;
   };
   email: {
     provider: 'gmail' | 'outlook' | 'custom';
@@ -127,10 +137,13 @@ const SettingsPage = () => {
   const [whatsappLoading, setWhatsappLoading] = useState(false);
   const [showSecrets, setShowSecrets] = useState({ accessToken: false, appSecret: false });
   const [testResults, setTestResults] = useState<{ connection?: string; ai?: string }>({});
+  const [aiLoading, setAiLoading] = useState(false);
+  const [pullingModel, setPullingModel] = useState<string | null>(null);
 
   useEffect(() => {
     void loadBaseSettings();
     void loadWhatsAppData();
+    void loadAIModels();
   }, []);
 
   const withToken = useMemo(
@@ -209,6 +222,42 @@ const SettingsPage = () => {
       toast.error('Errore nel recupero delle impostazioni WhatsApp.');
     } finally {
       setWhatsappLoading(false);
+    }
+  }
+
+  async function loadAIModels() {
+    try {
+      const response = await fetch('/api/ai/models', withToken());
+      const data = await response.json();
+      if (data.success) {
+        setAvailableModels(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching AI models:', error);
+      // Fallback models
+      setAvailableModels(['mistral:7b']);
+    }
+  }
+
+  async function pullAIModel(modelName: string) {
+    try {
+      setPullingModel(modelName);
+      const response = await fetch('/api/ai/pull-model', withToken({
+        method: 'POST',
+        body: JSON.stringify({ modelName }),
+      }));
+      const data = await response.json();
+      if (data.success) {
+        toast.success(data.message);
+        await loadAIModels(); // Reload models after successful pull
+      } else {
+        toast.error(data.message || 'Errore nel download del modello');
+      }
+    } catch (error) {
+      console.error('Error pulling model:', error);
+      toast.error('Errore nel download del modello');
+    } finally {
+      setPullingModel(null);
     }
   }
 
@@ -322,14 +371,14 @@ const SettingsPage = () => {
     if (!modelName) return;
     setWhatsappLoading(true);
     try {
-      const response = await fetch('/api/whatsapp/pull-model', withToken({
+      const response = await fetch('/api/ai/pull-model', withToken({
         method: 'POST',
         body: JSON.stringify({ modelName }),
       }));
       const data = await response.json();
       if (data.success) {
         toast.success(data.message || 'Modello scaricato con successo!');
-        await loadWhatsAppData();
+        await loadAIModels(); // Update AI models instead of WhatsApp data
       } else {
         toast.error(data.message || 'Errore nel download del modello');
       }
@@ -499,8 +548,11 @@ const SettingsPage = () => {
         {activeSection === 'ai-core' && baseSettings && (
           <AICoreSettingsSection
             settings={baseSettings}
+            models={availableModels}
             savingKey={savingKey}
             onSave={(payload) => handleSave('ai', payload)}
+            onPullModel={pullAIModel}
+            pullingModel={pullingModel}
           />
         )}
 
@@ -661,74 +713,233 @@ function GeneralSettingsSection({
 
 function AICoreSettingsSection({
   settings,
+  models,
   savingKey,
   onSave,
+  onPullModel,
+  pullingModel,
 }: {
   settings: BaseSettings;
+  models: string[];
   savingKey: string | null;
   onSave: (payload: BaseSettings['ai']) => Promise<void>;
+  onPullModel: (modelName: string) => Promise<void>;
+  pullingModel: string | null;
 }) {
   const [form, setForm] = useState(settings.ai);
+  const [newModelName, setNewModelName] = useState('');
 
   useEffect(() => {
     setForm(settings.ai);
   }, [settings.ai]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>AI Core</CardTitle>
-        <CardDescription>Configura il modello AI principale e i parametri globali.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-3">
-        <div className="space-y-2">
-          <Label>Modello di Default</Label>
-          <Select value={form.model} onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="llama3.2">Llama 3.2</SelectItem>
-              <SelectItem value="llama3.1">Llama 3.1</SelectItem>
-              <SelectItem value="mistral">Mistral</SelectItem>
-              <SelectItem value="codellama">CodeLlama</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>Temperature ({form.temperature.toFixed(1)})</Label>
-                <input
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="0.1"
-            value={form.temperature}
-            onChange={(e) => setForm((prev) => ({ ...prev, temperature: parseFloat(e.target.value) }))}
-                  className="w-full"
-                />
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Brain className="h-5 w-5" />
+            Configurazione AI Principale
+          </CardTitle>
+          <CardDescription>
+            Gestisci modelli, parametri e risposte automatiche per tutti i servizi dello studio.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Modello e parametri */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Modello AI</Label>
+              <Select value={form.model} onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona modello" />
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map((model) => (
+                    <SelectItem key={model} value={model}>
+                      {model}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Temperature ({form.temperature.toFixed(1)})</Label>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                value={form.temperature}
+                onChange={(e) => setForm((prev) => ({ ...prev, temperature: parseFloat(e.target.value) }))}
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Max Tokens</Label>
+              <Input
+                type="number"
+                value={form.maxTokens}
+                onChange={(e) => setForm((prev) => ({ ...prev, maxTokens: parseInt(e.target.value) || 2048 }))}
+              />
+            </div>
+          </div>
+
+          {/* Prompt personalizzato */}
+          <div className="space-y-2">
+            <Label>Prompt AI Personalizzato</Label>
+            <Textarea
+              value={form.prompt}
+              onChange={(e) => setForm((prev) => ({ ...prev, prompt: e.target.value }))}
+              placeholder="Sei l'assistente AI di Studio Gori..."
+              rows={4}
+            />
+          </div>
+
+          {/* Risposte automatiche per servizi */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
+              <h4 className="font-medium">Risposte Automatiche</h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4" />
+                    WhatsApp
+                  </Label>
+                  <Switch
+                    checked={form.whatsappEnabled}
+                    onCheckedChange={(checked) => setForm((prev) => ({ ...prev, whatsappEnabled: checked }))}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Email
+                  </Label>
+                  <Switch
+                    checked={form.emailEnabled}
+                    onCheckedChange={(checked) => setForm((prev) => ({ ...prev, emailEnabled: checked }))}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Documenti
+                  </Label>
+                  <Switch
+                    checked={form.documentsEnabled}
+                    onCheckedChange={(checked) => setForm((prev) => ({ ...prev, documentsEnabled: checked }))}
+                  />
+                </div>
               </div>
-        <div className="space-y-2">
-          <Label>Max Tokens</Label>
-                <Input
-                  type="number"
-            value={form.maxTokens}
-            min={100}
-            max={8192}
-            onChange={(e) => setForm((prev) => ({ ...prev, maxTokens: parseInt(e.target.value || '0', 10) }))}
-                />
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="font-medium">Orari di Lavoro</h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Abilita orari di lavoro</Label>
+                  <Switch
+                    checked={form.businessHoursEnabled}
+                    onCheckedChange={(checked) => setForm((prev) => ({ ...prev, businessHoursEnabled: checked }))}
+                  />
+                </div>
+                {form.businessHoursEnabled && (
+                  <>
+                    <div className="grid gap-2 grid-cols-2">
+                      <div>
+                        <Label className="text-xs">Dalle</Label>
+                        <Input
+                          type="time"
+                          value={form.businessHoursStart}
+                          onChange={(e) => setForm((prev) => ({ ...prev, businessHoursStart: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Alle</Label>
+                        <Input
+                          type="time"
+                          value={form.businessHoursEnd}
+                          onChange={(e) => setForm((prev) => ({ ...prev, businessHoursEnd: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Fuso orario</Label>
+                      <Select
+                        value={form.businessHoursTimezone}
+                        onValueChange={(value) => setForm((prev) => ({ ...prev, businessHoursTimezone: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Europe/Rome">Europa/Roma</SelectItem>
+                          <SelectItem value="Europe/London">Europa/Londra</SelectItem>
+                          <SelectItem value="America/New_York">America/New York</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
               </div>
-      </CardContent>
-      <CardContent>
-              <Button
-          onClick={() => onSave(form)}
-          disabled={savingKey === 'ai'}
-          className="bg-purple-600 text-white"
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {savingKey === 'ai' ? 'Salvando...' : 'Salva AI Core'}
-              </Button>
-      </CardContent>
-          </Card>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => onSave(form)}
+            disabled={savingKey === 'ai'}
+            className="w-fit"
+          >
+            {savingKey === 'ai' ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            Salva configurazione AI
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Download nuovi modelli */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Gestione Modelli</CardTitle>
+          <CardDescription>
+            Scarica nuovi modelli AI da Ollama o gestisci quelli esistenti.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Nome modello (es: llama3.1:8b)"
+              value={newModelName}
+              onChange={(e) => setNewModelName(e.target.value)}
+              className="flex-1"
+            />
+            <Button
+              onClick={() => {
+                if (newModelName.trim()) {
+                  onPullModel(newModelName.trim());
+                  setNewModelName('');
+                }
+              }}
+              disabled={!newModelName.trim() || !!pullingModel}
+            >
+              {pullingModel === newModelName ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Zap className="h-4 w-4 mr-2" />
+              )}
+              Scarica
+            </Button>
+          </div>
+          
+          <div className="text-sm text-muted-foreground">
+            <p><strong>Modelli disponibili:</strong> {models.join(', ')}</p>
+            <p className="mt-1">
+              <strong>Suggeriti:</strong> mistral:7b, llama3.1:8b, codellama:7b, phi3:mini
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -763,7 +974,6 @@ function WhatsAppSettingsSection({
   onGenerateToken: () => Promise<void>;
   onPullModel: (modelName: string) => Promise<void>;
 }) {
-  const [modelInput, setModelInput] = useState('');
 
   return (
     <Card>
@@ -953,143 +1163,46 @@ function WhatsAppSettingsSection({
           </TabsContent>
 
           <TabsContent value="ai" className="pt-6 space-y-4">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-blue-600" />
+                <div>
+                  <h4 className="font-medium text-blue-900">Configurazione AI Centralizzata</h4>
+                  <p className="text-sm text-blue-800">
+                    I modelli AI, prompt e configurazioni avanzate sono ora gestiti nella sezione <strong>AI Core</strong>.
+                    Le impostazioni qui sono specifiche per WhatsApp Business.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between border rounded-lg p-4">
               <div className="flex flex-col gap-1">
                 <Label className="flex items-center gap-2">
-                  <Bot className="h-4 w-4" /> Abilita risposte AI
+                  <Bot className="h-4 w-4" /> Abilita risposte automatiche AI per WhatsApp
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  L AI risponderà automaticamente ai messaggi dei clienti secondo il prompt configurato.
+                  L'AI risponderà automaticamente ai messaggi WhatsApp utilizzando le impostazioni globali.
                 </p>
-            </div>
+              </div>
               <Switch
-                checked={config.aiEnabled}
-                onCheckedChange={(checked) => onConfigChange({ ...config, aiEnabled: checked })}
+                checked={config.autoReply}
+                onCheckedChange={(checked) => onConfigChange({ ...config, autoReply: checked, aiEnabled: checked })}
               />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Modello AI</Label>
-                <Select
-                  value={config.aiModel}
-                  onValueChange={(value) => onConfigChange({ ...config, aiModel: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona modello" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(models.length ? models : ['mistral:7b']).map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Messaggi di contesto</Label>
-                <Select
-                  value={config.maxContextMessages.toString()}
-                  onValueChange={(value) => onConfigChange({ ...config, maxContextMessages: parseInt(value, 10) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 3, 5, 10, 20].map((item) => (
-                      <SelectItem key={item} value={item.toString()}>
-                        {item} messaggi
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Prompt AI personalizzato</Label>
-              <Textarea
-                value={config.aiPrompt}
-                onChange={(e) => onConfigChange({ ...config, aiPrompt: e.target.value })}
-                rows={6}
-                  />
-                </div>
-
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Zap className="h-4 w-4" /> Orari di ufficio
-              </Label>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={config.businessHoursEnabled}
-                  onCheckedChange={(checked) =>
-                    onConfigChange({ ...config, businessHoursEnabled: checked })
-                  }
-                />
-                <span className="text-sm text-muted-foreground">
-                  Invia risposta di cortesia fuori orario
-                </span>
-                </div>
-              {config.businessHoursEnabled && (
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label>Inizio</Label>
-                    <Input
-                      type="time"
-                      value={config.businessHoursStart}
-                      onChange={(e) => onConfigChange({ ...config, businessHoursStart: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Fine</Label>
-                    <Input
-                      type="time"
-                      value={config.businessHoursEnd}
-                      onChange={(e) => onConfigChange({ ...config, businessHoursEnd: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Fuso orario</Label>
-                    <Input
-                      value={config.businessHoursTimezone}
-                      onChange={(e) =>
-                        onConfigChange({ ...config, businessHoursTimezone: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <div className="border rounded-lg p-4">
-                <Label>Scarica modello da Ollama</Label>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    placeholder="es. mistral:7b, llama3"
-                    value={modelInput}
-                    onChange={(e) => setModelInput(e.target.value)}
-                  />
-                  <Button onClick={() => onPullModel(modelInput)} disabled={loading || !modelInput}>
-                    <Bot className="h-4 w-4 mr-2" /> Pull modello
-                </Button>
-                </div>
-              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <Button disabled={loading} onClick={() => onSave()}>
-                <Save className="h-4 w-4 mr-2" /> Salva impostazioni AI
+                <Save className="h-4 w-4 mr-2" /> Salva impostazioni WhatsApp AI
               </Button>
               <Button variant="outline" disabled={loading} onClick={onTestAI}>
                 <TestTube className="h-4 w-4 mr-2" /> Test AI
-                </Button>
-              </div>
+              </Button>
+            </div>
             {testResults.ai && (
               <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
                 {testResults.ai}
-            </div>
+              </div>
             )}
           </TabsContent>
 

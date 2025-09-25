@@ -28,11 +28,29 @@ export default function AIAssistantProPage() {
     setAiChatLoading(true);
 
     try {
-      const aiConfig = {
+      // Load AI settings from the centralized configuration
+      const settingsResponse = await fetch('/api/settings', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
+      
+      let aiConfig = {
         model: 'mistral:7b',
         temperature: 0.7,
         prompt: 'Sei un assistente AI professionale per uno studio di geometra. Rispondi in modo chiaro e utile.',
       };
+
+      if (settingsResponse.ok) {
+        const settingsData = await settingsResponse.json();
+        if (settingsData.success && settingsData.data?.ai) {
+          aiConfig = {
+            model: settingsData.data.ai.model || aiConfig.model,
+            temperature: settingsData.data.ai.temperature || aiConfig.temperature,
+            prompt: settingsData.data.ai.prompt || aiConfig.prompt,
+          };
+        }
+      }
 
       const response = await apiClient.post('/ai/chat', {
         message: aiChatMessage,
