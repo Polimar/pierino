@@ -59,6 +59,20 @@ class AIService {
     });
   }
 
+  async chatWithConfig(messages: ChatMessage[], chatConfig: any): Promise<AIResponse> {
+    try {
+      // Use OLLAMA by default for AI Assistant Pro
+      return await this.chatWithOllama(messages, {
+        ollamaEndpoint: chatConfig.ollamaEndpoint || 'http://ollama:11434',
+        ollamaModel: chatConfig.model || 'mistral:7b',
+        temperature: chatConfig.temperature || 0.7,
+      });
+    } catch (error) {
+      logger.error('AI Chat with config error:', error);
+      throw error;
+    }
+  }
+
   async chat(messages: ChatMessage[], context?: string): Promise<AIResponse> {
     const aiConfig = await this.getActiveConfiguration();
     

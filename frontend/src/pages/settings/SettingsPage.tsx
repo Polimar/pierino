@@ -81,10 +81,7 @@ interface WhatsAppConfigForm {
   businessHoursEnd: string;
   businessHoursTimezone: string;
   aiPrompt: string;
-  responsePrompt: string;
-  aiTemperature: number;
   maxContextMessages: number;
-  escalateToHuman: boolean;
 }
 
 type SettingsSection =
@@ -97,8 +94,7 @@ type SettingsSection =
   | 'practices'
   | 'calendar'
   | 'documents'
-  | 'assistant'
-  | 'ai-assistant';
+  | 'assistant';
 
 const DEFAULT_WHATSAPP_CONFIG: WhatsAppConfigForm = {
   accessToken: '',
@@ -116,10 +112,7 @@ const DEFAULT_WHATSAPP_CONFIG: WhatsAppConfigForm = {
   businessHoursTimezone: 'Europe/Rome',
   aiPrompt:
     "Sei l'assistente AI di Studio Gori, studio tecnico di geometri. Rispondi in modo professionale, conciso e in italiano.",
-  responsePrompt: "Rispondi al messaggio in modo chiaro e professionale, utilizzando il contesto della conversazione precedente.",
-  aiTemperature: 0.7,
   maxContextMessages: 5,
-  escalateToHuman: false,
 };
 
 const SettingsPage = () => {
@@ -415,12 +408,6 @@ const SettingsPage = () => {
         icon: <Bot className="h-4 w-4" />,
         description: 'Prompt e knowledge base (presto)',
       },
-      {
-        id: 'ai-assistant',
-        label: 'AI Assistant Pro',
-        icon: <Bot className="h-5 w-5 text-purple-600" />,
-        description: 'Sistema AI avanzato per WhatsApp, email, calendario, pratiche e documenti',
-      },
     ],
     []
   );
@@ -550,190 +537,7 @@ const SettingsPage = () => {
         {activeSection === 'practices' && <PlaceholderCard icon={<BookOpen className="h-8 w-8" />} title="Impostazioni Pratiche" />} 
         {activeSection === 'calendar' && <PlaceholderCard icon={<Calendar className="h-8 w-8" />} title="Calendario e Agenda" />} 
         {activeSection === 'documents' && <PlaceholderCard icon={<Inbox className="h-8 w-8" />} title="Gestione Documenti" />} 
-        {activeSection === 'assistant' && <PlaceholderCard icon={<Bot className="h-8 w-8" />} title="AI Assistant" />}
-        {activeSection === 'ai-assistant' && (
-          <div className="space-y-6">
-            <Tabs defaultValue="ai-models" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="ai-models" className="flex items-center gap-2">
-                  <Bot className="h-4 w-4" /> AI & Modelli
-                </TabsTrigger>
-                <TabsTrigger value="whatsapp" className="flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4" /> WhatsApp AI
-                </TabsTrigger>
-                <TabsTrigger value="integration" className="flex items-center gap-2">
-                  <Zap className="h-4 w-4" /> Integrazioni
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="ai-models" className="mt-6 space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bot className="h-5 w-5 text-purple-600" />
-                      Modelli AI e Prompt
-                    </CardTitle>
-                    <CardDescription>
-                      Configurazione modelli AI, temperature, prompt personalizzati e gestione knowledge base
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Modello AI</Label>
-                        <Select value={whatsappConfig.aiModel} onValueChange={(value) => setWhatsappConfig({...whatsappConfig, aiModel: value})}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleziona modello" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableModels.map((model) => (
-                              <SelectItem key={model} value={model}>
-                                {model}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Temperature</Label>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="2"
-                          value={whatsappConfig.aiTemperature}
-                          onChange={(e) => setWhatsappConfig({...whatsappConfig, aiTemperature: parseFloat(e.target.value) || 0.7})}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Prompt Sistema</Label>
-                      <Textarea
-                        value={whatsappConfig.aiPrompt}
-                        onChange={(e) => setWhatsappConfig({...whatsappConfig, aiPrompt: e.target.value})}
-                        placeholder="Inserisci il prompt sistema per l'AI..."
-                        rows={6}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Prompt Risposta</Label>
-                      <Textarea
-                        value={whatsappConfig.responsePrompt}
-                        onChange={(e) => setWhatsappConfig({...whatsappConfig, responsePrompt: e.target.value})}
-                        placeholder="Inserisci il prompt per le risposte dell'AI..."
-                        rows={4}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <Button onClick={() => saveWhatsAppConfig()} disabled={whatsappLoading}>
-                        <Save className="h-4 w-4 mr-2" />
-                        Salva Configurazione AI
-                      </Button>
-                      <Button variant="outline" onClick={() => testWhatsappAI()}>
-                        <TestTube className="h-4 w-4 mr-2" />
-                        Test AI
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="whatsapp" className="mt-6 space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MessageCircle className="h-5 w-5 text-green-600" />
-                      WhatsApp AI Integration
-                    </CardTitle>
-                    <CardDescription>
-                      Configurazione specifica per WhatsApp Business AI
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Numero Massimo Contesti</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="20"
-                        value={whatsappConfig.maxContextMessages}
-                        onChange={(e) => setWhatsappConfig({...whatsappConfig, maxContextMessages: parseInt(e.target.value) || 5})}
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={whatsappConfig.autoReply}
-                        onCheckedChange={(checked) => setWhatsappConfig({...whatsappConfig, autoReply: checked})}
-                      />
-                      <Label>Risposte automatiche attive</Label>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-lg">
-                      <p className="text-sm text-green-800">
-                        💬 <strong>WhatsApp AI:</strong> L'AI risponderà automaticamente ai messaggi ricevuti
-                        utilizzando il contesto della conversazione e i prompt configurati.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="integration" className="mt-6 space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-orange-600" />
-                      Integrazioni AI
-                    </CardTitle>
-                    <CardDescription>
-                      Configurazione integrazioni AI con altri moduli del sistema
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <h4 className="font-medium">📧 Email AI</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Risposte automatiche, classificazione e gestione email
-                        </p>
-                        <Button variant="outline" size="sm">Configura</Button>
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="font-medium">📅 Calendar AI</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Scheduling automatico e gestione appuntamenti
-                        </p>
-                        <Button variant="outline" size="sm">Configura</Button>
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="font-medium">📄 Document AI</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Ricerca semantica e estrazione informazioni
-                        </p>
-                        <Button variant="outline" size="sm">Configura</Button>
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="font-medium">👥 Client AI</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Analisi dati e suggerimenti per clienti
-                        </p>
-                        <Button variant="outline" size="sm">Configura</Button>
-                      </div>
-                    </div>
-                    <div className="bg-orange-50 p-4 rounded-lg">
-                      <p className="text-sm text-orange-800">
-                        🚀 <strong>In Sviluppo:</strong> Le integrazioni AI con gli altri moduli sono in sviluppo.
-                        Presto disponibili per un'automazione completa!
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-        )} 
+        {activeSection === 'assistant' && <PlaceholderCard icon={<Bot className="h-8 w-8" />} title="AI Assistant" />} 
       </main>
             </div>
   );
@@ -1012,7 +816,7 @@ function WhatsAppSettingsSection({
               <Zap className="h-4 w-4" /> Webhook
             </TabsTrigger>
             <TabsTrigger value="ai" className="flex items-center gap-2">
-              <Bot className="h-4 w-4" /> AI WhatsApp
+              <Bot className="h-4 w-4" /> AI & Modelli
             </TabsTrigger>
             <TabsTrigger value="status" className="flex items-center gap-2">
               <RefreshCw className="h-4 w-4" /> Test & Monitor
@@ -1152,19 +956,15 @@ function WhatsAppSettingsSection({
             <div className="flex items-center justify-between border rounded-lg p-4">
               <div className="flex flex-col gap-1">
                 <Label className="flex items-center gap-2">
-                  <Bot className="h-4 w-4" /> Abilita risposte AI WhatsApp
+                  <Bot className="h-4 w-4" /> Abilita risposte AI
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  L AI risponderà automaticamente ai messaggi usando il prompt configurato nell'AI Assistant Pro.
+                  L AI risponderà automaticamente ai messaggi dei clienti secondo il prompt configurato.
                 </p>
-              </div>
+            </div>
               <Switch
-                checked={config.aiEnabled && config.autoReply}
-                onCheckedChange={(checked) => onConfigChange({
-                  ...config,
-                  aiEnabled: checked,
-                  autoReply: checked
-                })}
+                checked={config.aiEnabled}
+                onCheckedChange={(checked) => onConfigChange({ ...config, aiEnabled: checked })}
               />
             </div>
 
@@ -1207,60 +1007,90 @@ function WhatsAppSettingsSection({
               </div>
             </div>
 
-            <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="space-y-2">
+              <Label>Prompt AI personalizzato</Label>
+              <Textarea
+                value={config.aiPrompt}
+                onChange={(e) => onConfigChange({ ...config, aiPrompt: e.target.value })}
+                rows={6}
+                  />
+                </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Zap className="h-4 w-4" /> Orari di ufficio
+              </Label>
               <div className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-blue-600" />
-                <div>
-                  <h4 className="font-medium text-blue-900">Configurazione AI Centralizzata</h4>
-                  <p className="text-sm text-blue-800">
-                    I modelli AI, prompt e configurazioni avanzate sono ora gestiti nella sezione <strong>AI Assistant Pro</strong>.
-                    Le impostazioni qui sono specifiche per WhatsApp Business.
-                  </p>
+                <Switch
+                  checked={config.businessHoursEnabled}
+                  onCheckedChange={(checked) =>
+                    onConfigChange({ ...config, businessHoursEnabled: checked })
+                  }
+                />
+                <span className="text-sm text-muted-foreground">
+                  Invia risposta di cortesia fuori orario
+                </span>
+                </div>
+              {config.businessHoursEnabled && (
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label>Inizio</Label>
+                    <Input
+                      type="time"
+                      value={config.businessHoursStart}
+                      onChange={(e) => onConfigChange({ ...config, businessHoursStart: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fine</Label>
+                    <Input
+                      type="time"
+                      value={config.businessHoursEnd}
+                      onChange={(e) => onConfigChange({ ...config, businessHoursEnd: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fuso orario</Label>
+                    <Input
+                      value={config.businessHoursTimezone}
+                      onChange={(e) =>
+                        onConfigChange({ ...config, businessHoursTimezone: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div className="border rounded-lg p-4">
+                <Label>Scarica modello da Ollama</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="es. mistral:7b, llama3"
+                    value={modelInput}
+                    onChange={(e) => setModelInput(e.target.value)}
+                  />
+                  <Button onClick={() => onPullModel(modelInput)} disabled={loading || !modelInput}>
+                    <Bot className="h-4 w-4 mr-2" /> Pull modello
+                </Button>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Orario di lavoro (opzionale)</Label>
-              <Input
-                value={config.businessHoursStart}
-                onChange={(e) => onConfigChange({ ...config, businessHoursStart: e.target.value })}
-                placeholder="09:00"
-                type="time"
-              />
-              <p className="text-xs text-muted-foreground">
-                Orario di inizio per risposte automatiche. Lascia vuoto per sempre attivo.
-              </p>
+            <div className="flex flex-wrap gap-2">
+              <Button disabled={loading} onClick={() => onSave()}>
+                <Save className="h-4 w-4 mr-2" /> Salva impostazioni AI
+              </Button>
+              <Button variant="outline" disabled={loading} onClick={onTestAI}>
+                <TestTube className="h-4 w-4 mr-2" /> Test AI
+                </Button>
+              </div>
+            {testResults.ai && (
+              <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
+                {testResults.ai}
             </div>
-
-            <div className="space-y-2">
-              <Label>Fine orario di lavoro</Label>
-              <Input
-                value={config.businessHoursEnd}
-                onChange={(e) => onConfigChange({ ...config, businessHoursEnd: e.target.value })}
-                placeholder="18:00"
-                type="time"
-              />
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={config.escalateToHuman}
-                onCheckedChange={(checked) => onConfigChange({ ...config, escalateToHuman: checked })}
-              />
-              <Label>Escalation a operatore umano</Label>
-              <p className="text-xs text-muted-foreground">
-                Se l'AI non riesce a gestire, inoltra a un operatore
-              </p>
-            </div>
-
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-green-800">
-                💬 <strong>WhatsApp AI:</strong> Configurato per utilizzare i prompt e modelli dell'AI Assistant Pro.
-                Le risposte automatiche saranno più intelligenti e contestuali.
-              </p>
-            </div>
-
+            )}
           </TabsContent>
 
           <TabsContent value="status" className="pt-6 space-y-4">
