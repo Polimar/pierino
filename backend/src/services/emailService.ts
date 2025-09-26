@@ -1,5 +1,5 @@
-// TODO: reintrodurre il servizio email con integrazione SMTP/IMAP aggiornata
 import { EventEmitter } from 'events';
+import nodemailer from 'nodemailer';
 import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
 
@@ -37,7 +37,7 @@ interface EmailTemplate {
 }
 
 class EmailService extends EventEmitter {
-  private transporter: any | null = null; // Changed to any as nodemailer is removed
+  private transporter: nodemailer.Transporter | null = null;
   private imapConnection: any = null;
   private isConnected = false;
   private templates: EmailTemplate[] = [];
@@ -45,7 +45,7 @@ class EmailService extends EventEmitter {
   constructor() {
     super();
     this.loadTemplates();
-    // this.initializeTransporter(); // Removed as nodemailer is removed
+    this.initializeTransporter();
   }
 
   private async loadTemplates() {
@@ -125,12 +125,135 @@ Cordiali saluti,
     ];
   }
 
-  // private initializeTransporter() { // Removed as nodemailer is removed
-  //   logger.warn('Email service disabilitato nella build corrente');
-  // }
+  private async initializeTransporter() {
+    try {
+      // Carica le impostazioni email dal database
+      const settings = await this.getEmailSettings();
+      
+      if (!settings || !settings.username) {
+        logger.warn('Email service: Configurazione non trovata');
+        return;
+      }
+
+      const config = this.getTransporterConfig(settings);
+      this.transporter = nodemailer.createTransporter(config);
+      
+      // Test della connessione
+      await this.transporter.verify();
+      this.isConnected = true;
+      logger.info(`Email service attivato con provider: ${settings.provider}`);
+      
+    } catch (error) {
+      logger.error('Errore inizializzazione transporter email:', error);
+      this.isConnected = false;
+    }
+  }
+
+  private async getEmailSettings() {
+    try {
+      const settingsRecord = await prisma.setting.findUnique({
+        where: { key: 'app:base' }
+      });
+      
+      if (settingsRecord?.value) {
+        const settings = JSON.parse(settingsRecord.value);
+        return settings.email;
+      }
+      return null;
+    } catch (error) {
+      logger.error('Errore caricamento impostazioni email:', error);
+      return null;
+    }
+  }
+
+  private getTransporterConfig(settings: any) {
+    const config: any = {
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+    };
+
+    switch (settings.provider) {
+      case 'local':
+        // Server mail locale Studio Gori
+        config.host = 'mailserver';
+        config.port = 587;
+        config.secure = false; // Use STARTTLS
+        config.auth = {
+          user: settings.username,
+          pass: settings.password,
+        };
+        config.tls = {
+          ciphers: 'SSLv3',
+          rejectUnauthorized: false // Per certificati autofirmati
+        };
+        break;
+
+      case 'gmail':
+        config.service = 'gmail';
+        config.auth = {
+          user: settings.username,
+          pass: settings.password, // App password per Gmail
+        };
+        break;
+
+      case 'outlook':
+        config.service = 'hotmail';
+        config.auth = {
+          user: settings.username,
+          pass: settings.password,
+        };
+        break;
+
+      case 'custom':
+        config.host = settings.host;
+        config.port = settings.port || 587;
+        config.secure = settings.secure || false;
+        config.auth = {
+          user: settings.username,
+          pass: settings.password,
+        };
+        break;
+
+      default:
+        throw new Error(`Provider email non supportato: ${settings.provider}`);
+    }
+
+    return config;
+  }
 
   async sendEmail(to: string, subject: string, text: string, html?: string, attachments?: any[]): Promise<string> {
-    throw new Error('Email service disabilitato nella build corrente');
+    if (!this.transporter || !this.isConnected) {
+      await this.initializeTransporter();
+    }
+
+    if (!this.transporter) {
+      throw new Error('Email service non configurato correttamente');
+    }
+
+    try {
+      const mailOptions = {
+        from: await this.getFromAddress(),
+        to,
+        subject,
+        text,
+        html: html || text,
+        attachments,
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      logger.info(`Email inviata con successo a ${to}, messageId: ${result.messageId}`);
+      
+      return result.messageId;
+    } catch (error) {
+      logger.error('Errore invio email:', error);
+      throw error;
+    }
+  }
+
+  private async getFromAddress(): Promise<string> {
+    const settings = await this.getEmailSettings();
+    return settings?.username || 'admin@studio-gori.com';
   }
 
   async sendTemplateEmail(
@@ -139,7 +262,46 @@ Cordiali saluti,
     variables: Record<string, any>,
     attachments?: any[]
   ): Promise<string> {
-    throw new Error('Email template service disabilitato nella build corrente');
+    const template = this.templates.find(t => t.id === templateId);
+    if (!template) {
+      throw new Error(`Template email non trovato: ${templateId}`);
+    }
+
+    // Sostituisci le variabili nel template
+    let subject = template.subject;
+    let body = template.body;
+
+    for (const [key, value] of Object.entries(variables)) {
+      const placeholder = `{{${key}}}`;
+      subject = subject.replace(new RegExp(placeholder, 'g'), String(value));
+      body = body.replace(new RegExp(placeholder, 'g'), String(value));
+    }
+
+    return this.sendEmail(to, subject, body, body, attachments);
+  }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      if (!this.transporter) {
+        await this.initializeTransporter();
+      }
+      
+      if (this.transporter) {
+        await this.transporter.verify();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      logger.error('Test connessione email fallito:', error);
+      return false;
+    }
+  }
+
+  // Metodo per ricaricare la configurazione
+  async reloadConfiguration(): Promise<void> {
+    this.isConnected = false;
+    this.transporter = null;
+    await this.initializeTransporter();
   }
 
   async connectIMAP(): Promise<void> {

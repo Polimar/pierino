@@ -304,7 +304,7 @@ router.put('/ai-timeouts', authenticateToken, requireAdmin, async (req, res) => 
 router.put('/email', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { provider, host, port, username, password, secure } = req.body;
-    if (provider && !['gmail', 'outlook', 'custom'].includes(provider)) {
+    if (provider && !['gmail', 'outlook', 'custom', 'local'].includes(provider)) {
       return res.status(400).json({ success: false, message: 'Provider email non supportato' });
     }
 
@@ -341,45 +341,35 @@ router.put('/email', authenticateToken, requireAdmin, async (req, res) => {
 
 router.post('/test-connection', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { type } = req.body as { type: 'email' | 'whatsapp' };
-    if (!type || !['email', 'whatsapp'].includes(type)) {
-      return res.status(400).json({ success: false, message: 'Tipo di connessione non valido' });
-    }
-
+    const { type } = req.body;
+    
     if (type === 'email') {
-      const settings = await readSettings();
-      if (!settings.email.username || !settings.email.password) {
-        return res.status(400).json({ success: false, message: 'Credenziali email mancanti' });
+      const { emailService } = require('../services/emailService');
+      const isConnected = await emailService.testConnection();
+      
+      if (isConnected) {
+        res.json({ 
+          success: true, 
+          message: 'Connessione email testata con successo!' 
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          message: 'Test connessione email fallito. Verifica le configurazioni.' 
+        });
       }
-      return res.json({
-        success: true,
-        data: {
-          connected: true,
-          provider: settings.email.provider,
-          lastTest: new Date().toISOString(),
-        },
+    } else {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Tipo di test non supportato' 
       });
     }
-
-    if (type === 'whatsapp') {
-      const config = await prisma.whatsappConfig.findFirst();
-      if (!config?.accessToken || !config?.phoneNumberId) {
-        return res.status(400).json({ success: false, message: 'WhatsApp non configurato' });
-      }
-      return res.json({
-        success: true,
-        data: {
-          connected: true,
-          phoneNumberId: config.phoneNumberId,
-          lastTest: new Date().toISOString(),
-        },
-      });
-    }
-
-    return res.status(400).json({ success: false, message: 'Tipo non supportato' });
   } catch (error) {
-    logger.error('Error testing connection', error);
-    res.status(500).json({ success: false, message: 'Errore nel test della connessione' });
+    logger.error('Error testing connection:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Errore nel test di connessione' 
+    });
   }
 });
 

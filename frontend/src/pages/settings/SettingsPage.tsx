@@ -56,7 +56,7 @@ interface BaseSettings {
     practices: number;
   };
   email: {
-    provider: 'gmail' | 'outlook' | 'custom';
+    provider: 'gmail' | 'outlook' | 'custom' | 'local';
     host?: string;
     port?: number;
     username?: string;
@@ -1305,12 +1305,76 @@ function EmailSettingsSection({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="local">🏠 Server Mail Locale (Studio Gori)</SelectItem>
               <SelectItem value="gmail">Gmail</SelectItem>
               <SelectItem value="outlook">Outlook</SelectItem>
               <SelectItem value="custom">Custom SMTP</SelectItem>
             </SelectContent>
           </Select>
             </div>
+
+        {form.provider === 'local' && (
+          <div className="bg-blue-50 p-4 rounded-lg border">
+            <h4 className="font-medium text-blue-900 mb-2">📧 Server Mail Locale Configurato</h4>
+            <p className="text-sm text-blue-800 mb-3">
+              Usa uno degli account email predefiniti del server mail locale di Studio Gori:
+            </p>
+            <div className="grid gap-2 text-sm">
+              <div className="flex justify-between items-center bg-white/50 p-2 rounded">
+                <span className="font-mono">admin@studio-gori.com</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setForm(prev => ({ 
+                    ...prev, 
+                    username: 'admin@studio-gori.com',
+                    host: 'mailserver',
+                    port: 587,
+                    secure: true
+                  }))}
+                >
+                  Usa questo
+                </Button>
+              </div>
+              <div className="flex justify-between items-center bg-white/50 p-2 rounded">
+                <span className="font-mono">geometra@studio-gori.com</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setForm(prev => ({ 
+                    ...prev, 
+                    username: 'geometra@studio-gori.com',
+                    host: 'mailserver', 
+                    port: 587,
+                    secure: true
+                  }))}
+                >
+                  Usa questo
+                </Button>
+              </div>
+              <div className="flex justify-between items-center bg-white/50 p-2 rounded">
+                <span className="font-mono">segreteria@studio-gori.com</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setForm(prev => ({ 
+                    ...prev, 
+                    username: 'segreteria@studio-gori.com',
+                    host: 'mailserver',
+                    port: 587, 
+                    secure: true
+                  }))}
+                >
+                  Usa questo
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-blue-600 mt-2">
+              💡 Le password sono quelle predefinite. Host: mailserver, Porta: 587 (STARTTLS)
+            </p>
+          </div>
+        )}
+
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label>Username / Email</Label>
