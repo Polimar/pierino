@@ -99,7 +99,7 @@ services:
   mailserver:
     image: docker.io/mailserver/docker-mailserver:latest
     container_name: studio-gori-mailserver
-    hostname: mail.studio-gori.com
+    hostname: mail.vps-3dee2600.vps.ovh.net
     ports:
       - "25:25"     # SMTP
       - "465:465"   # SMTPS  
@@ -113,6 +113,7 @@ services:
       - mailstate:/var/mail-state
       - maillogs:/var/log/mail
       - ./mail-config/:/tmp/docker-mailserver/
+      - ./letsencrypt:/tmp/docker-mailserver/ssl:ro
     environment:
       - ENABLE_POP3=1
       - ENABLE_CLAMAV=0
@@ -120,14 +121,18 @@ services:
       - ONE_DIR=1
       - DMS_DEBUG=0
       - PERMIT_DOCKER=network
-      - SSL_TYPE=manual
-      - SSL_CERT_PATH=/tmp/docker-mailserver/ssl/cert.pem
-      - SSL_KEY_PATH=/tmp/docker-mailserver/ssl/private.key
+      - SSL_TYPE=letsencrypt
+      - SSL_DOMAIN=vps-3dee2600.vps.ovh.net
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
     networks:
       - studio_gori_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.tcp.routers.mail-smtp.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.mail-smtp.entrypoints=mail-smtp"
+      - "traefik.tcp.services.mail-smtp.loadbalancer.server.port=587"
 
   traefik:
     image: traefik:v3.2

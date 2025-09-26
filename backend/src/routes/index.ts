@@ -5,6 +5,7 @@ import usersRoutes from './usersRoutes';
 import settingsRoutes from './settingsRoutes';
 import whatsappRoutes from './whatsappRoutes';
 import aiRoutes from './aiRoutes';
+import emailApiRoutes from './emailApiRoutes';
 
 const router = Router();
 
@@ -26,5 +27,6 @@ router.use('/users', usersRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/whatsapp', whatsappRoutes);
 router.use('/ai', aiRoutes);
+router.use('/emails', emailApiRoutes);
 
 export default router;

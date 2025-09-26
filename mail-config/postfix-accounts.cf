@@ -1,5 +1,5 @@
 # Studio Gori Mail Accounts
 # Format: user@domain|password_hash
-admin@studio-gori.com|{PLAIN}StudioGori2024!
-geometra@studio-gori.com|{PLAIN}Geometra2024!
-segreteria@studio-gori.com|{PLAIN}Segreteria2024!
+admin@vps-3dee2600.vps.ovh.net|{PLAIN}StudioGori2024!
+geometra@vps-3dee2600.vps.ovh.net|{PLAIN}Geometra2024!
+segreteria@vps-3dee2600.vps.ovh.net|{PLAIN}Segreteria2024!

@@ -1321,13 +1321,13 @@ function EmailSettingsSection({
             </p>
             <div className="grid gap-2 text-sm">
               <div className="flex justify-between items-center bg-white/50 p-2 rounded">
-                <span className="font-mono">admin@studio-gori.com</span>
+                <span className="font-mono">admin@vps-3dee2600.vps.ovh.net</span>
                 <Button 
                   variant="ghost" 
                   size="sm"
                   onClick={() => setForm(prev => ({ 
                     ...prev, 
-                    username: 'admin@studio-gori.com',
+                    username: 'admin@vps-3dee2600.vps.ovh.net',
                     host: 'mailserver',
                     port: 587,
                     secure: true
@@ -1337,13 +1337,13 @@ function EmailSettingsSection({
                 </Button>
               </div>
               <div className="flex justify-between items-center bg-white/50 p-2 rounded">
-                <span className="font-mono">geometra@studio-gori.com</span>
+                <span className="font-mono">geometra@vps-3dee2600.vps.ovh.net</span>
                 <Button 
                   variant="ghost" 
                   size="sm"
                   onClick={() => setForm(prev => ({ 
                     ...prev, 
-                    username: 'geometra@studio-gori.com',
+                    username: 'geometra@vps-3dee2600.vps.ovh.net',
                     host: 'mailserver', 
                     port: 587,
                     secure: true
@@ -1353,13 +1353,13 @@ function EmailSettingsSection({
                 </Button>
               </div>
               <div className="flex justify-between items-center bg-white/50 p-2 rounded">
-                <span className="font-mono">segreteria@studio-gori.com</span>
+                <span className="font-mono">segreteria@vps-3dee2600.vps.ovh.net</span>
                 <Button 
                   variant="ghost" 
                   size="sm"
                   onClick={() => setForm(prev => ({ 
                     ...prev, 
-                    username: 'segreteria@studio-gori.com',
+                    username: 'segreteria@vps-3dee2600.vps.ovh.net',
                     host: 'mailserver',
                     port: 587, 
                     secure: true

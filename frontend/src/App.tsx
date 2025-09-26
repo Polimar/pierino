@@ -14,6 +14,7 @@ import LoadingPage from '@/pages/LoadingPage';
 import UsersPage from '@/pages/users/UsersPage';
 import SettingsPage from '@/pages/settings/SettingsPage';
 import WhatsAppPage from '@/pages/whatsapp/WhatsAppPage';
+import EmailPage from '@/pages/email/EmailPage';
 import AIAssistantProPage from '@/pages/ai-assistant-pro/AIAssistantProPage';
 
 // Layout
@@ -108,7 +109,7 @@ function App() {
               <Route path="clients/:id" element={<ClientDetailPage />} />
               <Route path="practices" element={<div>Pratiche - Coming Soon</div>} />
               <Route path="whatsapp" element={<WhatsAppPage />} />
-              <Route path="email" element={<div>Email - Coming Soon</div>} />
+              <Route path="email" element={<EmailPage />} />
               <Route path="calendar" element={<div>Calendario - Coming Soon</div>} />
               <Route path="documents" element={<div>Documenti - Coming Soon</div>} />
               <Route path="ai-assistant-pro" element={<AIAssistantProPage />} />
