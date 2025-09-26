@@ -21,7 +21,9 @@ router.get('/webhook', async (req, res) => {
 
 router.post('/webhook', async (req, res) => {
   try {
+    console.log('Webhook POST received:', JSON.stringify(req.body, null, 2));
     await whatsappBusinessService.processWebhook(req.body);
+    console.log('Webhook processed successfully');
     res.status(200).send('OK');
   } catch (error: any) {
     console.error('Webhook error:', error);

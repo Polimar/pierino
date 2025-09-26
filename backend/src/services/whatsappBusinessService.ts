@@ -256,11 +256,21 @@ class WhatsAppBusinessService extends EventEmitter {
   }
 
   async processWebhook(body: IncomingMessagePayload) {
+    console.log('=== WHATSAPP WEBHOOK DEBUG ===');
+    console.log('Webhook received:', JSON.stringify(body, null, 2));
+    logger.info('Webhook received:', JSON.stringify(body, null, 2));
     const entries = body.entry || [];
+    console.log('Entries found:', entries.length);
     for (const entry of entries) {
       const changes = entry.changes || [];
+      console.log('Changes found:', changes.length);
       for (const change of changes) {
-        if (change.field !== 'messages' || !change.value.messages) continue;
+        console.log(`Processing change: field=${change.field}, hasMessages=${!!change.value.messages}`);
+        logger.info(`Processing change: field=${change.field}, hasMessages=${!!change.value.messages}`);
+        if (change.field !== 'messages' || !change.value.messages) {
+          console.log('Skipping change - not messages or no messages');
+          continue;
+        }
 
         const metadata = change.value.metadata;
         const contacts = change.value.contacts || [];
@@ -319,16 +329,23 @@ class WhatsAppBusinessService extends EventEmitter {
     message: { id: string; content: string },
     configOverride?: Awaited<ReturnType<typeof this.ensureConfig>>
   ) {
+    console.log('=== AI PROCESSING DEBUG ===');
+    console.log('processWithAI called with:', { conversationId, messageId: message.id, content: message.content });
     const config = configOverride || (await this.ensureConfig());
+    console.log('Config loaded:', { aiEnabled: config.aiEnabled, autoReply: config.autoReply, aiModel: config.aiModel });
 
     if (config.businessHoursEnabled && !this.isWithinBusinessHours(config)) {
+      console.log('Business hours check: studio chiuso');
       const autoReply = `Grazie per il tuo messaggio. Il nostro studio è attualmente chiuso. Orari: ${config.businessHoursStart}-${config.businessHoursEnd}. Ti risponderemo appena possibile.`;
       await this.sendAIReply(conversationId, autoReply, message.id, config);
       return;
     }
+    console.log('Business hours check: studio aperto, procedo con AI');
 
     try {
+      console.log('=== TRY BLOCK START ===');
       // Ottieni il contesto della conversazione
+      console.log('Fetching conversation context...');
       const conversation = await prisma.whatsappConversation.findUnique({
         where: { id: conversationId },
         include: {
@@ -336,16 +353,16 @@ class WhatsAppBusinessService extends EventEmitter {
           assignedTo: true
         }
       });
+      console.log('Conversation found:', { id: conversation?.id, phone: conversation?.contactPhone });
 
       // Costruisci la storia della conversazione
+      console.log('Fetching message history...');
       const history = await prisma.whatsappMessage.findMany({
         where: { conversationId },
         orderBy: { timestamp: 'desc' },
-        take: config.maxContextMessages,
-        include: {
-          author: true
-        }
+        take: config.maxContextMessages
       });
+      console.log('Message history found:', history.length, 'messages');
 
       // Prepara i messaggi per l'AI con tools
       const messages: ChatMessageWithTools[] = [];
@@ -389,7 +406,17 @@ class WhatsAppBusinessService extends EventEmitter {
       const whatsappTimeout = await this.getWhatsappTimeout();
 
       // Usa l'AI con tools e timeout WhatsApp
+      console.log('=== AI CALL DEBUG ===');
+      console.log('Calling aiService.chatWithTools with:', { 
+        messagesCount: messages.length, 
+        context: aiContext, 
+        timeout: whatsappTimeout 
+      });
       const aiResponse = await aiService.chatWithTools(messages, aiContext, 5, whatsappTimeout);
+      console.log('AI Response received:', { 
+        content: aiResponse.content?.substring(0, 100) + '...', 
+        toolCalls: aiResponse.toolCalls?.length || 0 
+      });
 
       // Estrai il contenuto della risposta pulito
       let responseText = aiResponse.content;

@@ -196,7 +196,7 @@ Se non hai bisogno di usare tools, rispondi normalmente in italiano.`
       });
 
       const response = await axios.post(`http://ollama:11434/api/chat`, {
-        model: 'mistral:7b',
+        model: 'phi3:mini', // Usa il modello configurato per WhatsApp
         messages: ollamaMessages,
         stream: false,
         options: {
