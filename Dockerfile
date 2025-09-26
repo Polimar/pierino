@@ -1,7 +1,7 @@
-# Multi-stage build per ottimizzazione
+# BACKEND-ONLY Dockerfile - NO FRONTEND BUILD!
 FROM node:18-alpine AS base
 
-# Installa dipendenze di sistema necessarie
+# Installa dipendenze di sistema necessarie per BACKEND
 RUN apk add --no-cache \
     python3 \
     make \
@@ -26,34 +26,16 @@ RUN mkdir -p /usr/share/tessdata && \
 
 WORKDIR /app
 
-# Copia package.json e installa dipendenze (inclusi dev per build)
-COPY package*.json ./
+# Copia SOLO backend package.json
 COPY backend/package*.json ./backend/
-COPY frontend/package*.json ./frontend/
 
-# Installa dipendenze (dev incluse per poter buildare)
-RUN npm install && \
-    cd backend && npm install && \
-    cd ../frontend && npm install
+# Installa SOLO dipendenze backend
+RUN cd backend && npm install
 
-# Build stage
-FROM base AS builder
-
-WORKDIR /app
-
-# Copia tutto il codice
-COPY . .
-
-# Genera Prisma client
-RUN cd backend && npx prisma generate
-
-# Build frontend
-RUN cd frontend && npm run build
-
-# Production stage
+# Production stage - BACKEND ONLY
 FROM node:18-alpine AS production
 
-# Installa dipendenze runtime
+# Installa dipendenze runtime per BACKEND
 RUN apk add --no-cache \
     ffmpeg \
     tesseract-ocr \
@@ -80,13 +62,15 @@ WORKDIR /app
 # Installa ts-node per eseguire TypeScript direttamente
 RUN npm install -g ts-node
 
-# Copia i file necessari
-COPY --from=builder /app/backend/node_modules ./backend/node_modules
-COPY --from=builder /app/backend/package*.json ./backend/
-COPY --from=builder /app/backend/src ./backend/src
-COPY --from=builder /app/backend/tsconfig.json ./backend/tsconfig.json
-COPY --from=builder /app/backend/prisma ./backend/prisma
-COPY --from=builder /app/frontend/dist ./frontend/dist
+# Copia SOLO file backend
+COPY --from=base /app/backend/node_modules ./backend/node_modules
+COPY backend/package*.json ./backend/
+COPY backend/src ./backend/src
+COPY backend/tsconfig.json ./backend/tsconfig.json
+COPY backend/prisma ./backend/prisma
+
+# Genera Prisma client
+RUN cd backend && npx prisma generate
 
 # Crea directory per dati persistenti
 RUN mkdir -p /app/data/uploads /app/data/whatsapp_session
@@ -103,5 +87,5 @@ EXPOSE 3000
 # HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 #     CMD sh -c "cd backend && ts-node --transpile-only --project tsconfig.json src/healthcheck.ts" || exit 1
 
-# Avvia applicazione
-CMD ["sh", "-c", "cp -r /app/frontend/dist/* /app/frontend/dist/. 2>/dev/null || true && cd backend && ts-node --transpile-only --project tsconfig.json src/server.ts"]
+# Avvia SOLO backend
+CMD ["sh", "-c", "cd backend && ts-node --transpile-only --project tsconfig.json src/server.ts"]

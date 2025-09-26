@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/store/authStore';
+import { useSettings } from '@/hooks/useSettings';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, current: false },
@@ -37,6 +38,7 @@ const secondaryNavigation = [
 export default function Sidebar() {
   const location = useLocation();
   const { user } = useAuthStore();
+  const { settings } = useSettings();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const SidebarContent = () => (
@@ -45,7 +47,7 @@ export default function Sidebar() {
         <div className="flex items-center">
           <Building2 className="h-8 w-8 text-blue-600" />
           <span className="ml-2 text-xl font-bold text-gray-900">
-            Studio Gori
+            {settings?.general?.companyName || 'Studio Gori'}
           </span>
         </div>
         {/* Close button for mobile */}
