@@ -58,7 +58,7 @@ export default function AIAssistantProPage() {
           message: aiChatMessage,
           model: aiConfig.model,
           temperature: aiConfig.temperature,
-          timeout: aiConfig.timeout || 30000,
+          service: 'general',
           prompt: aiConfig.prompt,
         });
 

@@ -2,13 +2,53 @@ import { Router } from 'express';
 import { aiService } from '../services/aiService';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import axios from 'axios';
+import prisma from '../config/database';
 
 const router = Router();
+
+async function getAITimeouts() {
+  try {
+    const settingsRecord = await prisma.setting.findUnique({
+      where: { key: 'app:base' }
+    });
+    
+    if (settingsRecord?.value) {
+      const settings = JSON.parse(settingsRecord.value);
+      return settings.aiTimeouts || {
+        whatsapp: 60000,
+        email: 45000,
+        documents: 90000,
+        general: 30000,
+        calendar: 30000,
+        practices: 60000,
+      };
+    }
+    
+    return {
+      whatsapp: 60000,
+      email: 45000,
+      documents: 90000,
+      general: 30000,
+      calendar: 30000,
+      practices: 60000,
+    };
+  } catch (error) {
+    console.error('Error loading AI timeouts from settings:', error);
+    return {
+      whatsapp: 60000,
+      email: 45000,
+      documents: 90000,
+      general: 30000,
+      calendar: 30000,
+      practices: 60000,
+    };
+  }
+}
 
 // Chat endpoint for AI Assistant Pro
 router.post('/chat', authenticateToken, async (req, res) => {
   try {
-    const { message, model, temperature, prompt, timeout } = req.body;
+    const { message, model, temperature, prompt, service = 'general' } = req.body;
 
     if (!message || typeof message !== 'string') {
       return res.status(400).json({
@@ -32,10 +72,14 @@ router.post('/chat', authenticateToken, async (req, res) => {
       validModel = 'mistral:7b';
     }
 
+    // Carica i timeout dalle impostazioni
+    const aiTimeouts = await getAITimeouts();
+    const serviceTimeout = aiTimeouts[service as keyof typeof aiTimeouts] || 30000;
+
     const config = {
       model: validModel,
       temperature: temperature || 0.7,
-      timeout: timeout || 30000,
+      timeout: serviceTimeout,
       prompt: prompt || 'Sei un assistente AI professionale. Rispondi in modo chiaro e utile.',
       ollamaEndpoint: 'http://ollama:11434'
     };

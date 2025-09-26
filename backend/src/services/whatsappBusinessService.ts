@@ -385,8 +385,11 @@ class WhatsAppBusinessService extends EventEmitter {
 
       logger.info(`Processing message with AI tools. Context: conversationId=${conversationId}, phone=${aiContext.userPhone}`);
 
-      // Usa l'AI con tools
-      const aiResponse = await aiService.chatWithTools(messages, aiContext);
+      // Carica timeout WhatsApp dalle impostazioni  
+      const whatsappTimeout = await this.getWhatsappTimeout();
+
+      // Usa l'AI con tools e timeout WhatsApp
+      const aiResponse = await aiService.chatWithTools(messages, aiContext, 5, whatsappTimeout);
 
       // Estrai il contenuto della risposta pulito
       let responseText = aiResponse.content;
@@ -676,6 +679,24 @@ class WhatsAppBusinessService extends EventEmitter {
     });
 
     logger.info(`Conversazione ${conversationId} eliminata con successo`);
+  }
+
+  private async getWhatsappTimeout(): Promise<number> {
+    try {
+      const settingsRecord = await prisma.setting.findUnique({
+        where: { key: 'app:base' }
+      });
+      
+      if (settingsRecord?.value) {
+        const settings = JSON.parse(settingsRecord.value);
+        return settings.aiTimeouts?.whatsapp || 60000;
+      }
+      
+      return 60000; // Default timeout
+    } catch (error) {
+      logger.error('Error loading WhatsApp timeout from settings:', error);
+      return 60000; // Default timeout
+    }
   }
 }
 

@@ -12,7 +12,6 @@ type AppSettings = {
     model: string;
     temperature: number;
     maxTokens: number;
-    timeout: number;
     prompt: string;
     whatsappEnabled: boolean;
     emailEnabled: boolean;
@@ -23,6 +22,14 @@ type AppSettings = {
     businessHoursEnd: string;
     businessHoursTimezone: string;
     maxContextMessages: number;
+  };
+  aiTimeouts: {
+    whatsapp: number;
+    email: number;
+    documents: number;
+    general: number;
+    calendar: number;
+    practices: number;
   };
   email: {
     provider: string;
@@ -44,7 +51,6 @@ const DEFAULT_SETTINGS: AppSettings = {
     model: 'mistral:7b',
     temperature: 0.7,
     maxTokens: 2048,
-    timeout: 30000,
     prompt: "Sei l'assistente AI di Studio Gori, studio tecnico di geometri. Rispondi in modo professionale, conciso e in italiano.",
     whatsappEnabled: false,
     emailEnabled: false,
@@ -55,6 +61,14 @@ const DEFAULT_SETTINGS: AppSettings = {
     businessHoursEnd: '18:00',
     businessHoursTimezone: 'Europe/Rome',
     maxContextMessages: 5,
+  },
+  aiTimeouts: {
+    whatsapp: 60000,      // 60 secondi per WhatsApp
+    email: 45000,         // 45 secondi per Email  
+    documents: 90000,     // 90 secondi per ricerca documenti
+    general: 30000,       // 30 secondi per chat generale
+    calendar: 30000,      // 30 secondi per calendario
+    practices: 60000,     // 60 secondi per gestione pratiche
   },
   email: {
     provider: 'gmail',
@@ -98,6 +112,10 @@ async function readSettings(): Promise<AppSettings> {
       ai: {
         ...DEFAULT_SETTINGS.ai,
         ...(parsed.ai ?? {}),
+      },
+      aiTimeouts: {
+        ...DEFAULT_SETTINGS.aiTimeouts,
+        ...(parsed.aiTimeouts ?? {}),
       },
       email: {
         ...DEFAULT_SETTINGS.email,
@@ -177,7 +195,6 @@ router.put('/ai', authenticateToken, requireAdmin, async (req, res) => {
       model, 
       temperature, 
       maxTokens,
-      timeout,
       prompt,
       whatsappEnabled,
       emailEnabled,
@@ -212,9 +229,6 @@ router.put('/ai', authenticateToken, requireAdmin, async (req, res) => {
     if (typeof maxTokens === 'number' && (maxTokens < 100 || maxTokens > 8192)) {
       return res.status(400).json({ success: false, message: 'MaxTokens deve essere tra 100 e 8192' });
     }
-    if (typeof timeout === 'number' && (timeout < 5000 || timeout > 300000)) {
-      return res.status(400).json({ success: false, message: 'Timeout deve essere tra 5 e 300 secondi (5000-300000 ms)' });
-    }
 
     const current = await readSettings();
     const updated: AppSettings = {
@@ -224,7 +238,6 @@ router.put('/ai', authenticateToken, requireAdmin, async (req, res) => {
         model: model ?? current.ai.model,
         temperature: temperature ?? current.ai.temperature,
         maxTokens: maxTokens ?? current.ai.maxTokens,
-        timeout: timeout ?? current.ai.timeout,
         prompt: prompt ?? current.ai.prompt,
         whatsappEnabled: whatsappEnabled ?? current.ai.whatsappEnabled,
         emailEnabled: emailEnabled ?? current.ai.emailEnabled,
@@ -247,6 +260,44 @@ router.put('/ai', authenticateToken, requireAdmin, async (req, res) => {
   } catch (error) {
     logger.error('Error updating AI settings', error);
     res.status(500).json({ success: false, message: 'Errore nell\'aggiornamento delle impostazioni AI' });
+  }
+});
+
+// AI Timeouts endpoint
+router.put('/ai-timeouts', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { whatsapp, email, documents, general, calendar, practices } = req.body;
+
+    // Validazione timeout (5s - 5min per tutti i servizi)
+    const timeouts = { whatsapp, email, documents, general, calendar, practices };
+    for (const [service, timeout] of Object.entries(timeouts)) {
+      if (timeout && (timeout < 5000 || timeout > 300000)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Timeout per ${service} deve essere tra 5000ms (5s) e 300000ms (5min)` 
+        });
+      }
+    }
+
+    const current = await readSettings();
+    const updated: AppSettings = {
+      ...current,
+      aiTimeouts: {
+        ...current.aiTimeouts,
+        whatsapp: whatsapp ?? current.aiTimeouts.whatsapp,
+        email: email ?? current.aiTimeouts.email,
+        documents: documents ?? current.aiTimeouts.documents,
+        general: general ?? current.aiTimeouts.general,
+        calendar: calendar ?? current.aiTimeouts.calendar,
+        practices: practices ?? current.aiTimeouts.practices,
+      },
+    };
+
+    await saveSettings(updated);
+    res.json({ success: true, message: 'Timeout AI aggiornati', data: updated.aiTimeouts });
+  } catch (error: any) {
+    logger.error('Update AI timeouts error:', error.message || error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

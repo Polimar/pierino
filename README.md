@@ -659,6 +659,13 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
+### Architettura Container Separati
+
+🔑 **IMPORTANTE**: L'applicazione utilizza **2 CONTAINER SEPARATI** per garantire la separazione degli ambienti:
+
+1. **`app`** → Backend Express.js con API REST (porta 3000)
+2. **`frontend`** → Nginx per servire React build (porta 80)
+
 ### Docker Compose
 ```yaml
 version: '3.8'
@@ -673,13 +680,30 @@ services:
     depends_on:
       - db
       - ollama
+      - redis
     volumes:
-      - ./uploads:/app/uploads
+      - app_data:/app/data
+    labels:
+      # Solo API routes (/api/*)
+      - "traefik.http.routers.api.rule=Host(`vps-3dee2600.vps.ovh.net`) && PathPrefix(`/api`)"
+      - "traefik.http.services.api.loadbalancer.server.port=3000"
+
+  frontend:
+    image: nginx:alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro 
+    depends_on:
+      - app
+    labels:
+      # Tutte le route non-API (/, /settings, /dashboard, etc.)
+      - "traefik.http.routers.frontend.rule=Host(`vps-3dee2600.vps.ovh.net`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
   
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     environment:
-      POSTGRES_DB: geometra_app
+      POSTGRES_DB: studio_gori_app
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
     volumes:
@@ -695,12 +719,6 @@ services:
       - ollama_data:/root/.ollama
     environment:
       - OLLAMA_HOST=0.0.0.0
-    command: >
-      sh -c "ollama serve & 
-             sleep 10 && 
-             ollama pull llama3.1 && 
-             ollama pull mistral && 
-             wait"
 
   redis:
     image: redis:7-alpine
@@ -708,11 +726,27 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes
+
+  traefik:
+    image: traefik:v3.2
+    command:
+      - --providers.docker=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
 volumes:
   postgres_data:
   ollama_data:
   redis_data:
+  app_data:
 ```
 
 ## Fasi di Sviluppo
@@ -954,7 +988,13 @@ curl -X PUT http://localhost:3000/api/users/USER_ID/password \
   -d '{"newPassword": "nuovaPassword123"}'
 ```
 
-### Docker
+### Docker - Gestione Container Separati
+
+🔑 **ARCHITETTURA DUAL-CONTAINER**: 
+- `app` → Backend Express API
+- `frontend` → Nginx serving React build
+
+#### Comandi Base
 ```bash
 npm run docker:up        # Avvia tutti i servizi
 npm run docker:down      # Ferma tutti i servizi
@@ -962,6 +1002,48 @@ npm run docker:build     # Build immagini
 npm run docker:logs      # Visualizza log
 npm run docker:db        # Solo database e cache
 ```
+
+#### 📋 PROCESSO DEPLOYMENT CORRETTO (2 Container)
+
+**SEMPRE seguire questo ordine per deployment:**
+
+1. **Modifica codice backend** (API, servizi, route):
+   ```bash
+   # Copia SOLO se necessario (files già locali)
+   docker compose cp app:/app/backend/src ./backend/
+   ```
+
+2. **Modifica codice frontend** (React, UI, components):
+   ```bash
+   cd frontend && npm run build  # Build sempre locale!
+   # Il volume mount ./frontend/dist fa il resto
+   ```
+
+3. **Build container app** (solo se modifiche backend):
+   ```bash
+   docker compose build app --no-cache
+   ```
+
+4. **Deploy entrambi i container**:
+   ```bash
+   docker compose down
+   docker compose up -d
+   ```
+
+5. **Verifica entrambi i servizi**:
+   ```bash
+   # Frontend
+   curl https://vps-3dee2600.vps.ovh.net/ | grep index-
+   
+   # Backend API  
+   curl https://vps-3dee2600.vps.ovh.net/api/health
+   ```
+
+#### ⚠️ CRITICAL: File Management Separato
+
+- **Backend**: Modifiche in `./backend/src` → Build container `app`
+- **Frontend**: Modifiche in `./frontend/src` → Build locale → Volume mount automatico
+- **Mai copiare frontend DA container**: il build deve essere sempre locale!
 
 ### Produzione
 ```bash

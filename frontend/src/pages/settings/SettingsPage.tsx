@@ -18,6 +18,7 @@ import {
   BookOpen,
   Inbox,
   Users,
+  Clock,
 } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,7 +36,6 @@ interface BaseSettings {
     model: string;
     temperature: number;
     maxTokens: number;
-    timeout: number;
     prompt: string;
     whatsappEnabled: boolean;
     emailEnabled: boolean;
@@ -46,6 +46,14 @@ interface BaseSettings {
     businessHoursEnd: string;
     businessHoursTimezone: string;
     maxContextMessages: number;
+  };
+  aiTimeouts: {
+    whatsapp: number;
+    email: number;
+    documents: number;
+    general: number;
+    calendar: number;
+    practices: number;
   };
   email: {
     provider: 'gmail' | 'outlook' | 'custom';
@@ -105,7 +113,7 @@ type SettingsSection =
   | 'practices'
   | 'calendar'
   | 'documents'
-  | 'assistant';
+  | 'ai-timeouts';
 
 const DEFAULT_WHATSAPP_CONFIG: WhatsAppConfigForm = {
   accessToken: '',
@@ -284,6 +292,28 @@ const SettingsPage = () => {
     }
   }
 
+  async function handleSaveAITimeouts(payload: BaseSettings['aiTimeouts']) {
+    setSavingKey('ai-timeouts');
+    try {
+      const response = await fetch('/api/settings/ai-timeouts', withToken({
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }));
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Timeout AI aggiornati!');
+        await loadBaseSettings();
+      } else {
+        toast.error(data.message || 'Errore nel salvataggio timeout.');
+      }
+    } catch (error) {
+      console.error('Error saving AI timeouts:', error);
+      toast.error('Errore nel salvataggio dei timeout AI.');
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
   async function saveWhatsAppConfig(partial?: Partial<WhatsAppConfigForm>) {
     setWhatsappLoading(true);
     try {
@@ -453,10 +483,10 @@ const SettingsPage = () => {
         description: 'Storage documenti e OCR (presto)',
       },
       {
-        id: 'assistant',
-        label: 'AI Assistant',
-        icon: <Bot className="h-4 w-4" />,
-        description: 'Prompt e knowledge base (presto)',
+        id: 'ai-timeouts',
+        label: 'AI Timeouts',
+        icon: <Clock className="h-4 w-4" />,
+        description: 'Gestisci timeout per ogni servizio AI',
       },
     ],
     []
@@ -590,7 +620,13 @@ const SettingsPage = () => {
         {activeSection === 'practices' && <PlaceholderCard icon={<BookOpen className="h-8 w-8" />} title="Impostazioni Pratiche" />} 
         {activeSection === 'calendar' && <PlaceholderCard icon={<Calendar className="h-8 w-8" />} title="Calendario e Agenda" />} 
         {activeSection === 'documents' && <PlaceholderCard icon={<Inbox className="h-8 w-8" />} title="Gestione Documenti" />} 
-        {activeSection === 'assistant' && <PlaceholderCard icon={<Bot className="h-8 w-8" />} title="AI Assistant" />} 
+        {activeSection === 'ai-timeouts' && baseSettings && (
+          <AITimeoutsSection
+            settings={baseSettings}
+            savingKey={savingKey}
+            onSave={handleSaveAITimeouts}
+          />
+        )} 
       </main>
             </div>
   );
@@ -748,7 +784,7 @@ function AICoreSettingsSection({
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Modello e parametri */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
               <Label>Modello AI</Label>
               <Select value={form.model} onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}>
@@ -783,20 +819,6 @@ function AICoreSettingsSection({
                 value={form.maxTokens}
                 onChange={(e) => setForm((prev) => ({ ...prev, maxTokens: parseInt(e.target.value) || 2048 }))}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Timeout (secondi)</Label>
-              <Input
-                type="number"
-                min="5"
-                max="300"
-                value={Math.round(form.timeout / 1000)}
-                onChange={(e) => setForm((prev) => ({ ...prev, timeout: (parseInt(e.target.value) || 30) * 1000 }))}
-                placeholder="30"
-              />
-              <p className="text-xs text-muted-foreground">
-                Tempo massimo attesa risposta AI (5-300s)
-              </p>
             </div>
           </div>
 
@@ -1356,6 +1378,133 @@ function PlaceholderCard({ icon, title }: { icon: React.ReactNode; title: string
           <CardDescription>Configurazioni dedicate verranno aggiunte in una release successiva.</CardDescription>
         </div>
       </CardHeader>
+    </Card>
+  );
+}
+
+// AI Timeouts Section Component
+function AITimeoutsSection({
+  settings,
+  savingKey,
+  onSave,
+}: {
+  settings: BaseSettings;
+  savingKey: string | null;
+  onSave: (payload: BaseSettings['aiTimeouts']) => Promise<void>;
+}) {
+  const [form, setForm] = useState(settings.aiTimeouts);
+
+  useEffect(() => {
+    setForm(settings.aiTimeouts);
+  }, [settings.aiTimeouts]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Clock className="h-5 w-5" />
+          Timeout AI per Servizio
+        </CardTitle>
+        <CardDescription>
+          Configura timeout specifici per ogni servizio AI. Tempi più lunghi per operazioni complesse.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-2">
+            <Label>WhatsApp AI (secondi)</Label>
+            <Input
+              type="number"
+              min="5"
+              max="300"
+              value={Math.round(form.whatsapp / 1000)}
+              onChange={(e) => setForm((prev) => ({ ...prev, whatsapp: (parseInt(e.target.value) || 60) * 1000 }))}
+              placeholder="60"
+            />
+            <p className="text-xs text-muted-foreground">Timeout per risposte AI WhatsApp</p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Email AI (secondi)</Label>
+            <Input
+              type="number"
+              min="5"
+              max="300"
+              value={Math.round(form.email / 1000)}
+              onChange={(e) => setForm((prev) => ({ ...prev, email: (parseInt(e.target.value) || 45) * 1000 }))}
+              placeholder="45"
+            />
+            <p className="text-xs text-muted-foreground">Timeout per gestione AI email</p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Ricerca Documenti (secondi)</Label>
+            <Input
+              type="number"
+              min="5"
+              max="300"
+              value={Math.round(form.documents / 1000)}
+              onChange={(e) => setForm((prev) => ({ ...prev, documents: (parseInt(e.target.value) || 90) * 1000 }))}
+              placeholder="90"
+            />
+            <p className="text-xs text-muted-foreground">Timeout per ricerca AI documenti</p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Chat Generale (secondi)</Label>
+            <Input
+              type="number"
+              min="5"
+              max="300"
+              value={Math.round(form.general / 1000)}
+              onChange={(e) => setForm((prev) => ({ ...prev, general: (parseInt(e.target.value) || 30) * 1000 }))}
+              placeholder="30"
+            />
+            <p className="text-xs text-muted-foreground">Timeout per chat AI generale</p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Calendario AI (secondi)</Label>
+            <Input
+              type="number"
+              min="5"
+              max="300"
+              value={Math.round(form.calendar / 1000)}
+              onChange={(e) => setForm((prev) => ({ ...prev, calendar: (parseInt(e.target.value) || 30) * 1000 }))}
+              placeholder="30"
+            />
+            <p className="text-xs text-muted-foreground">Timeout per operazioni AI calendario</p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Gestione Pratiche (secondi)</Label>
+            <Input
+              type="number"
+              min="5"
+              max="300"
+              value={Math.round(form.practices / 1000)}
+              onChange={(e) => setForm((prev) => ({ ...prev, practices: (parseInt(e.target.value) || 60) * 1000 }))}
+              placeholder="60"
+            />
+            <p className="text-xs text-muted-foreground">Timeout per AI gestione pratiche</p>
+          </div>
+        </div>
+
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h4 className="font-medium text-blue-900 mb-2">💡 Linee Guida Timeout</h4>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li><strong>Chat Generale:</strong> 30s - Risposte rapide</li>
+            <li><strong>WhatsApp/Pratiche:</strong> 60s - Analisi contesto e tools</li>
+            <li><strong>Ricerca Documenti:</strong> 90s - OCR e ricerca contenuti</li>
+            <li><strong>Email:</strong> 45s - Elaborazione allegati</li>
+          </ul>
+        </div>
+
+        <Button onClick={() => onSave(form)} disabled={savingKey === 'ai-timeouts'} className="w-full">
+          <Save className="h-4 w-4 mr-2" />
+          {savingKey === 'ai-timeouts' ? 'Salvando...' : 'Salva Timeout AI'}
+        </Button>
+      </CardContent>
     </Card>
   );
 }

@@ -68,6 +68,7 @@ class AIService {
         ollamaEndpoint: chatConfig.ollamaEndpoint || 'http://ollama:11434',
         ollamaModel: chatConfig.model || 'mistral:7b',
         temperature: chatConfig.temperature || 0.7,
+        timeout: chatConfig.timeout || 30000,
       });
     } catch (error: any) {
       console.error('AI Chat with config error:', error.message || error);
@@ -81,7 +82,8 @@ class AIService {
   async chatWithTools(
     messages: ChatMessageWithTools[], 
     context?: AIToolContext,
-    maxIterations: number = 5
+    maxIterations: number = 5,
+    timeout: number = 30000
   ): Promise<AIResponseWithTools> {
     try {
       console.log('Starting chat with tools, context:', context);
@@ -104,7 +106,7 @@ class AIService {
 
         // Per ora usiamo Ollama, ma senza function calling nativo
         // Simuliamo function calling tramite parsing del testo
-        const response = await this.chatWithOllamaTools(currentMessages, toolsDefinition, context);
+        const response = await this.chatWithOllamaTools(currentMessages, toolsDefinition, context, timeout);
         
         // Se non ci sono tool calls, ritorna la risposta
         if (!response.toolCalls || response.toolCalls.length === 0) {
@@ -163,7 +165,8 @@ class AIService {
   private async chatWithOllamaTools(
     messages: ChatMessageWithTools[], 
     tools: any[],
-    context?: AIToolContext
+    context?: AIToolContext,
+    timeout: number = 30000
   ): Promise<AIResponseWithTools> {
     try {
       // Prepara i messaggi per Ollama
@@ -202,7 +205,7 @@ Se non hai bisogno di usare tools, rispondi normalmente in italiano.`
           num_predict: 2048,
         },
       }, {
-        timeout: 30000, // Mantenuto fisso per tools
+        timeout: timeout, // Usa timeout configurabile per servizio
       });
 
       const responseContent = response.data.message.content;

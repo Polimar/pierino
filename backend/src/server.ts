@@ -26,6 +26,7 @@ async function startServer() {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
       console.log(`🔑 Login endpoint: http://localhost:${PORT}/api/auth/login`);
+      console.log('🏗️ Frontend build version: BhAeRJU8 (with AI Timeouts)');
     });
 
     // Graceful shutdown

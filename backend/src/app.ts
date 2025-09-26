@@ -50,21 +50,8 @@ app.use(sanitizeInput);
 app.use(generalLimiter);
 app.use('/api/auth', authLimiter);
 
-// Static files - serve frontend build
-app.use(express.static(path.join(__dirname, '../../frontend/dist')));
-
-// API routes
+// API routes only - frontend served by separate Nginx container
 app.use('/api', routes);
-
-// Serve frontend for all non-API routes (SPA routing)
-app.get('*', (req, res) => {
-  // Skip API routes
-  if (req.path.startsWith('/api')) {
-    return notFoundHandler(req, res);
-  }
-  
-  res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
-});
 
 // Error handling
 app.use(notFoundHandler);
