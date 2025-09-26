@@ -1,0 +1,5 @@
+# Studio Gori Mail Accounts
+# Format: user@domain|password_hash
+admin@studio-gori.com|{PLAIN}StudioGori2024!
+geometra@studio-gori.com|{PLAIN}Geometra2024!
+segreteria@studio-gori.com|{PLAIN}Segreteria2024!

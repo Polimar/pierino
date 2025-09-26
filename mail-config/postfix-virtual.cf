@@ -1,0 +1,6 @@
+# Studio Gori Virtual Domains
+# Format: virtual_alias@domain  real_user@domain
+info@studio-gori.com admin@studio-gori.com
+contatti@studio-gori.com admin@studio-gori.com
+pratiche@studio-gori.com geometra@studio-gori.com
+assistenza@studio-gori.com segreteria@studio-gori.com

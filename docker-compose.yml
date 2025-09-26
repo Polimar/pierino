@@ -96,6 +96,39 @@ services:
       - studio_gori_network
     command: redis-server --appendonly yes
 
+  mailserver:
+    image: docker.io/mailserver/docker-mailserver:latest
+    container_name: studio-gori-mailserver
+    hostname: mail.studio-gori.com
+    ports:
+      - "25:25"     # SMTP
+      - "465:465"   # SMTPS  
+      - "587:587"   # SMTP submission
+      - "110:110"   # POP3
+      - "995:995"   # POP3S
+      - "143:143"   # IMAP (bonus)
+      - "993:993"   # IMAPS (bonus)
+    volumes:
+      - maildata:/var/mail
+      - mailstate:/var/mail-state
+      - maillogs:/var/log/mail
+      - ./mail-config/:/tmp/docker-mailserver/
+    environment:
+      - ENABLE_POP3=1
+      - ENABLE_CLAMAV=0
+      - ENABLE_SPAMASSASSIN=0
+      - ONE_DIR=1
+      - DMS_DEBUG=0
+      - PERMIT_DOCKER=network
+      - SSL_TYPE=manual
+      - SSL_CERT_PATH=/tmp/docker-mailserver/ssl/cert.pem
+      - SSL_KEY_PATH=/tmp/docker-mailserver/ssl/private.key
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - studio_gori_network
+
   traefik:
     image: traefik:v3.2
     command:
@@ -125,6 +158,9 @@ volumes:
   ollama_data:
   redis_data:
   app_data:
+  maildata:
+  mailstate:
+  maillogs:
 
 networks:
   studio_gori_network:

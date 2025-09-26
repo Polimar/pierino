@@ -75,6 +75,70 @@ Il database viene automaticamente popolato con utenti di sistema:
 - **API**: https://vps-3dee2600.vps.ovh.net/api
 - **Database UI**: https://vps-3dee2600.vps.ovh.net/api/prisma-studio
 
+## 📧 Server Mail Locale Integrato
+
+Studio Gori include un **server mail completo** con supporto SMTP, POP3 e IMAP per gestione email interna.
+
+### 🔧 **Configurazione Server Mail**
+
+```yaml
+mailserver:
+  image: docker.io/mailserver/docker-mailserver:latest
+  hostname: mail.studio-gori.com
+  ports:
+    - "25:25"     # SMTP
+    - "465:465"   # SMTPS  
+    - "587:587"   # SMTP submission
+    - "110:110"   # POP3
+    - "995:995"   # POP3S
+    - "143:143"   # IMAP
+    - "993:993"   # IMAPS
+```
+
+### 📮 **Account Email Predefiniti**
+
+- **admin@studio-gori.com** → Password: `StudioGori2024!`
+- **geometra@studio-gori.com** → Password: `Geometra2024!`
+- **segreteria@studio-gori.com** → Password: `Segreteria2024!`
+
+### 📧 **Alias Email**
+
+- `info@studio-gori.com` → `admin@studio-gori.com`
+- `contatti@studio-gori.com` → `admin@studio-gori.com`
+- `pratiche@studio-gori.com` → `geometra@studio-gori.com`
+- `assistenza@studio-gori.com` → `segreteria@studio-gori.com`
+
+### ⚙️ **Configurazione Client Email**
+
+**SMTP (Invio):**
+- Server: `vps-3dee2600.vps.ovh.net`
+- Porta: `587` (STARTTLS) o `465` (SSL)
+- Autenticazione: Sì
+- Username/Password: Come da account sopra
+
+**POP3 (Ricezione):**
+- Server: `vps-3dee2600.vps.ovh.net`
+- Porta: `110` (normale) o `995` (SSL)
+- Username/Password: Come da account sopra
+
+**IMAP (Ricezione - Consigliato):**
+- Server: `vps-3dee2600.vps.ovh.net`
+- Porta: `143` (normale) o `993` (SSL)
+- Username/Password: Come da account sopra
+
+### 🚀 **Avvio Server Mail**
+
+```bash
+# Avvia solo mailserver
+docker compose up -d mailserver
+
+# Controlla stato
+docker compose ps mailserver
+
+# Controlla logs
+docker compose logs mailserver -f
+```
+
 ## Stack Tecnologico Richiesto
 - **Frontend**: React.js con TypeScript, Tailwind CSS, Shadcn/UI
 - **Backend**: Node.js con Express.js e TypeScript
@@ -728,6 +792,31 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
 
+  mailserver:
+    image: docker.io/mailserver/docker-mailserver:latest
+    container_name: studio-gori-mailserver
+    hostname: mail.studio-gori.com
+    ports:
+      - "25:25"     # SMTP
+      - "465:465"   # SMTPS  
+      - "587:587"   # SMTP submission
+      - "110:110"   # POP3
+      - "995:995"   # POP3S
+      - "143:143"   # IMAP (bonus)
+      - "993:993"   # IMAPS (bonus)
+    volumes:
+      - maildata:/var/mail
+      - mailstate:/var/mail-state
+      - maillogs:/var/log/mail
+      - ./mail-config/:/tmp/docker-mailserver/
+    environment:
+      - ENABLE_POP3=1
+      - ENABLE_CLAMAV=0
+      - ENABLE_SPAMASSASSIN=0
+      - ONE_DIR=1
+      - DMS_DEBUG=0
+    restart: unless-stopped
+
   traefik:
     image: traefik:v3.2
     command:
@@ -747,6 +836,9 @@ volumes:
   ollama_data:
   redis_data:
   app_data:
+  maildata:
+  mailstate:
+  maillogs:
 ```
 
 ## Fasi di Sviluppo
