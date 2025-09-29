@@ -1,5 +1,6 @@
 import { Users, FileText, MessageSquare, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { QueueStatusWidget } from '@/components/dashboard/QueueStatusWidget';
 
 const stats = [
   {
@@ -87,12 +88,19 @@ const urgentTasks = [
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Panoramica delle attività del tuo studio
-        </p>
+      {/* Header con Widget Code */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Panoramica delle attività del tuo studio
+          </p>
+        </div>
+        
+        {/* Widget Code in alto a destra */}
+        <div className="flex-shrink-0">
+          <QueueStatusWidget compact={true} refreshInterval={10000} />
+        </div>
       </div>
 
       {/* Stats */}
