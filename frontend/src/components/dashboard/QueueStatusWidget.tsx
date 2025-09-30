@@ -86,7 +86,7 @@ export const QueueStatusWidget: React.FC<QueueStatusWidgetProps> = ({
       // Se l'errore è 401, potrebbe essere che il sistema di code non è ancora attivo
       // Mostra dati demo per ora
       if (error.response?.status === 401 || error.response?.status === 404) {
-        setError('Sistema code non ancora attivo - dati demo');
+        setError('Sistema code non attivo - modalità demo');
         // Dati mock per dimostrare il widget
         setQueuesStatus({
           'ai-processing': { waiting: 2, active: 1, completed: 45, failed: 0, delayed: 0 },
@@ -238,7 +238,7 @@ export const QueueStatusWidget: React.FC<QueueStatusWidgetProps> = ({
   }
 
   // Rimuovi il return early per errore se abbiamo dati demo
-  const isDemoMode = error?.includes('dati demo');
+  const isDemoMode = error?.includes('modalità demo');
 
   const totalJobs = metrics?.overview.totalJobs || 0;
   const activeJobs = metrics?.overview.totalActive || 0;
@@ -318,86 +318,165 @@ export const QueueStatusWidget: React.FC<QueueStatusWidgetProps> = ({
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-3">
-        {/* Statistiche rapide */}
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500">Totali:</span>
-            <span className="font-medium">{totalJobs}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500">Attivi:</span>
-            <span className="font-medium text-green-600">{activeJobs}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500">In Coda:</span>
-            <span className="font-medium text-yellow-600">{waitingJobs}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500">Falliti:</span>
-            <span className="font-medium text-red-600">{failedJobs}</span>
-          </div>
-        </div>
-
-        {/* Progress bar successo */}
-        {totalJobs > 0 && (
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Tasso Successo</span>
-              <span>{metrics?.overview.successRate}</span>
-            </div>
-            <Progress 
-              value={parseFloat(metrics?.overview.successRate?.replace('%', '') || '0')} 
-              className="h-2"
-            />
-          </div>
-        )}
-
-        {/* Code individuali */}
-        <div className="space-y-2">
-          {Object.entries(queuesStatus).slice(0, compact ? 3 : 6).map(([queueName, stats]) => {
-            const status = getQueueStatus(stats);
-            const isError = 'error' in stats;
-            
-            return (
-              <div key={queueName} className="flex items-center justify-between py-1">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <div className={`w-2 h-2 rounded-full ${QUEUE_COLORS[queueName] || 'bg-gray-400'}`} />
-                  <span className="text-xs font-medium truncate">
-                    {QUEUE_NAMES[queueName] || queueName}
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-1">
-                  {!isError && (
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                      {stats.active > 0 && (
-                        <span className="text-green-600 font-medium">{stats.active}</span>
-                      )}
-                      {stats.waiting > 0 && (
-                        <span className="text-yellow-600">+{stats.waiting}</span>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div className={getStatusColor(status)}>
-                    {getStatusIcon(status)}
-                  </div>
-                </div>
+      <CardContent className={compact ? "space-y-3" : "py-4"}>
+        {compact ? (
+          // Layout verticale per compact
+          <>
+            {/* Statistiche rapide */}
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Totali:</span>
+                <span className="font-medium">{totalJobs}</span>
               </div>
-            );
-          })}
-        </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Attivi:</span>
+                <span className="font-medium text-green-600">{activeJobs}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">In Coda:</span>
+                <span className="font-medium text-yellow-600">{waitingJobs}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Falliti:</span>
+                <span className="font-medium text-red-600">{failedJobs}</span>
+              </div>
+            </div>
 
-        {compact && Object.keys(queuesStatus).length > 3 && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full"
-            onClick={() => setShowDetails(true)}
-          >
-            Mostra tutte ({Object.keys(queuesStatus).length})
-          </Button>
+            {/* Progress bar successo */}
+            {totalJobs > 0 && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Tasso Successo</span>
+                  <span>{metrics?.overview.successRate}</span>
+                </div>
+                <Progress 
+                  value={parseFloat(metrics?.overview.successRate?.replace('%', '') || '0')} 
+                  className="h-2"
+                />
+              </div>
+            )}
+
+            {/* Code individuali */}
+            <div className="space-y-2">
+              {Object.entries(queuesStatus).slice(0, 3).map(([queueName, stats]) => {
+                const status = getQueueStatus(stats);
+                const isError = 'error' in stats;
+                
+                return (
+                  <div key={queueName} className="flex items-center justify-between py-1">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className={`w-2 h-2 rounded-full ${QUEUE_COLORS[queueName] || 'bg-gray-400'}`} />
+                      <span className="text-xs font-medium truncate">
+                        {QUEUE_NAMES[queueName] || queueName}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      {!isError && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          {stats.active > 0 && (
+                            <span className="text-green-600 font-medium">{stats.active}</span>
+                          )}
+                          {stats.waiting > 0 && (
+                            <span className="text-yellow-600">+{stats.waiting}</span>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className={getStatusColor(status)}>
+                        {getStatusIcon(status)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {Object.keys(queuesStatus).length > 3 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={() => setShowDetails(true)}
+              >
+                Mostra tutte ({Object.keys(queuesStatus).length})
+              </Button>
+            )}
+          </>
+        ) : (
+          // Layout orizzontale per non compact
+          <div className="space-y-4">
+            {/* Statistiche principali orizzontali */}
+            <div className="grid grid-cols-6 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold">{totalJobs}</div>
+                <div className="text-xs text-gray-500">Totali</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-600">{activeJobs}</div>
+                <div className="text-xs text-gray-500">Attivi</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-yellow-600">{waitingJobs}</div>
+                <div className="text-xs text-gray-500">In Coda</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-blue-600">{completedJobs}</div>
+                <div className="text-xs text-gray-500">Completati</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-red-600">{failedJobs}</div>
+                <div className="text-xs text-gray-500">Falliti</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-purple-600">{metrics?.overview.successRate || '0%'}</div>
+                <div className="text-xs text-gray-500">Successo</div>
+              </div>
+            </div>
+
+            {/* Progress bar successo orizzontale */}
+            {totalJobs > 0 && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Stato Elaborazione</span>
+                  <span>{metrics?.overview.successRate}</span>
+                </div>
+                <Progress 
+                  value={parseFloat(metrics?.overview.successRate?.replace('%', '') || '0')} 
+                  className="h-3"
+                />
+              </div>
+            )}
+
+            {/* Code individuali in griglia orizzontale */}
+            <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+              {Object.entries(queuesStatus).map(([queueName, stats]) => {
+                const status = getQueueStatus(stats);
+                const isError = 'error' in stats;
+                
+                return (
+                  <div key={queueName} className="flex flex-col items-center p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-3 h-3 rounded-full ${QUEUE_COLORS[queueName] || 'bg-gray-400'}`} />
+                      <div className={getStatusColor(status)}>
+                        {getStatusIcon(status)}
+                      </div>
+                    </div>
+                    <div className="text-xs font-medium text-center mb-1">
+                      {QUEUE_NAMES[queueName]?.replace(/^🤖|💬|📧|🎬|📊|🔔\s*/, '') || queueName}
+                    </div>
+                    {!isError && (
+                      <div className="text-xs text-gray-500 text-center">
+                        {stats.active > 0 && <div className="text-green-600 font-medium">{stats.active} attivi</div>}
+                        {stats.waiting > 0 && <div className="text-yellow-600">{stats.waiting} in coda</div>}
+                        {stats.active === 0 && stats.waiting === 0 && <div>Idle</div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

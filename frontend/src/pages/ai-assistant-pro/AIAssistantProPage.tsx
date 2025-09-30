@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Bot, MessageSquare, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bot, MessageSquare, RefreshCw, Settings } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { apiClient } from '@/utils/api';
 
 export default function AIAssistantProPage() {
@@ -14,6 +15,35 @@ export default function AIAssistantProPage() {
     content: string;
     timestamp: string;
   }>>([]);
+  const [availableModels, setAvailableModels] = useState<string[]>(['mistral:7b']);
+  const [selectedModel, setSelectedModel] = useState('mistral:7b');
+  const [selectedTemperature, setSelectedTemperature] = useState(0.7);
+
+  useEffect(() => {
+    loadAIModels();
+  }, []);
+
+  async function loadAIModels() {
+    try {
+      const response = await fetch('/api/ai/models', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
+      const data = await response.json();
+      if (data.success && data.data.length > 0) {
+        setAvailableModels(data.data);
+        // Imposta il primo modello come default se non è già impostato
+        if (!data.data.includes(selectedModel)) {
+          setSelectedModel(data.data[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading AI models:', error);
+      // Fallback ai modelli di default
+      setAvailableModels(['mistral:7b', 'phi3:mini']);
+    }
+  }
 
   async function sendAiChatMessage() {
     if (!aiChatMessage.trim()) return;
@@ -36,8 +66,8 @@ export default function AIAssistantProPage() {
       });
       
       let aiConfig = {
-        model: 'mistral:7b',
-        temperature: 0.7,
+        model: selectedModel, // Usa il modello selezionato dall'utente
+        temperature: selectedTemperature, // Usa la temperatura selezionata dall'utente
         timeout: 30000,
         prompt: 'Sei un assistente AI professionale per uno studio di geometra. Rispondi in modo chiaro e utile.',
       };
@@ -46,8 +76,8 @@ export default function AIAssistantProPage() {
         const settingsData = await settingsResponse.json();
         if (settingsData.success && settingsData.data?.ai) {
           aiConfig = {
-            model: settingsData.data.ai.model || aiConfig.model,
-            temperature: settingsData.data.ai.temperature || aiConfig.temperature,
+            model: selectedModel, // Priorità al modello selezionato dall'utente
+            temperature: selectedTemperature, // Priorità alla temperatura selezionata dall'utente
             timeout: settingsData.data.ai.timeout || aiConfig.timeout,
             prompt: settingsData.data.ai.prompt || aiConfig.prompt,
           };
@@ -119,6 +149,58 @@ export default function AIAssistantProPage() {
               value={aiChatMessage}
               onChange={(e) => setAiChatMessage(e.target.value)}
             />
+          </div>
+
+          {/* Configurazione AI dinamica */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Modello AI
+              </Label>
+              <Select value={selectedModel} onValueChange={setSelectedModel}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona modello" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableModels.map((model) => (
+                    <SelectItem key={model} value={model}>
+                      {model}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Temperature ({selectedTemperature.toFixed(1)})</Label>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                value={selectedTemperature}
+                onChange={(e) => setSelectedTemperature(parseFloat(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+              />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Preciso</span>
+                <span>Creativo</span>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Modelli Disponibili</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadAIModels}
+                className="w-full"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Ricarica Modelli
+              </Button>
+            </div>
           </div>
 
           <div className="flex gap-2">

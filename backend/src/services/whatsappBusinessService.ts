@@ -6,6 +6,7 @@ import { prisma } from '../config/database';
 import { createLogger } from '../utils/logger';
 import { aiService } from './aiService';
 import { AIToolContext, ChatMessageWithTools } from '../types/aiTypes';
+import { QueueService } from './queueService';
 
 type IncomingMessagePayload = {
   entry?: Array<{
@@ -45,26 +46,24 @@ const BUSINESS_HOURS_FALLBACK = {
   timezone: 'Europe/Rome',
 };
 
-class ConversationQueue {
-  private queue = new Map<string, Promise<void>>();
-
-  enqueue(conversationId: string, task: () => Promise<void>): void {
-    const current = this.queue.get(conversationId) ?? Promise.resolve();
-    const next = current.then(task).catch((error) => {
-      logger.error('Queue task error:', error);
-    });
-
-    this.queue.set(conversationId, next.finally(() => {
-      if (this.queue.get(conversationId) === next) {
-        this.queue.delete(conversationId);
-      }
-    }));
-  }
-}
+// Usa BullMQ per le code WhatsApp invece di una coda in memoria
 
 class WhatsAppBusinessService extends EventEmitter {
-  private queue = new ConversationQueue();
+  private static instance: WhatsAppBusinessService;
+  private queueService: QueueService;
   private aiServiceUrl = process.env.OLLAMA_ENDPOINT || 'http://ollama:11434';
+
+  constructor() {
+    super();
+    this.queueService = QueueService.getInstance();
+  }
+
+  static getInstance(): WhatsAppBusinessService {
+    if (!WhatsAppBusinessService.instance) {
+      WhatsAppBusinessService.instance = new WhatsAppBusinessService();
+    }
+    return WhatsAppBusinessService.instance;
+  }
 
   private async ensureConfig() {
     let config = await prisma.whatsappConfig.findFirst();
@@ -256,40 +255,56 @@ class WhatsAppBusinessService extends EventEmitter {
   }
 
   async processWebhook(body: IncomingMessagePayload) {
-    console.log('=== WHATSAPP WEBHOOK DEBUG ===');
-    console.log('Webhook received:', JSON.stringify(body, null, 2));
     logger.info('Webhook received:', JSON.stringify(body, null, 2));
     const entries = body.entry || [];
-    console.log('Entries found:', entries.length);
+    
     for (const entry of entries) {
       const changes = entry.changes || [];
-      console.log('Changes found:', changes.length);
       for (const change of changes) {
-        console.log(`Processing change: field=${change.field}, hasMessages=${!!change.value.messages}`);
         logger.info(`Processing change: field=${change.field}, hasMessages=${!!change.value.messages}`);
+        
         if (change.field !== 'messages' || !change.value.messages) {
-          console.log('Skipping change - not messages or no messages');
           continue;
         }
 
-        const metadata = change.value.metadata;
-        const contacts = change.value.contacts || [];
+        try {
+          const metadata = change.value.metadata;
+          const contacts = change.value.contacts || [];
 
-        for (const message of change.value.messages) {
-          await this.handleIncomingMessage(message, metadata, contacts);
+          logger.info(`📥 Processing ${change.value.messages?.length || 0} messages`);
+
+          for (const message of change.value.messages) {
+            try {
+              await this.handleIncomingMessage(message, metadata, contacts);
+              logger.info(`✅ Message ${message.id} processed successfully`);
+            } catch (error: any) {
+              logger.error(`❌ Error processing message ${message.id}:`, error);
+              throw error;
+            }
+          }
+        } catch (loopError: any) {
+          logger.error('💥 Error in webhook processing:', loopError);
+          throw loopError;
         }
       }
     }
   }
 
   private async handleIncomingMessage(message: any, metadata: any, contacts: any[]) {
+    console.log(`🔄 handleIncomingMessage chiamato per messaggio ${message.id}`);
+    
     const from = message.from;
-    if (!from) return;
+    if (!from) {
+      console.warn(`❌ Messaggio senza from: ${JSON.stringify(message)}`);
+      return;
+    }
 
     const contactProfile = contacts.find((contact) => contact.wa_id === from);
     const contactName = contactProfile?.profile?.name ?? null;
     const content = this.extractMessageContent(message);
     const config = await this.ensureConfig();
+    
+    console.log(`📞 Messaggio da ${from} (${contactName}): "${content}"`);
 
     const conversation = await this.upsertConversationByPhone(from, {
       contactName,
@@ -312,40 +327,69 @@ class WhatsAppBusinessService extends EventEmitter {
 
     await this.touchConversation(conversation.id, content, true);
 
-    logger.info(`Messaggio ricevuto da ${from}: aiEnabled=${config.aiEnabled}, autoReply=${config.autoReply}`);
+    console.log(`🤖 Config AI: aiEnabled=${config.aiEnabled}, autoReply=${config.autoReply}`);
 
     if (config.aiEnabled && config.autoReply) {
-      logger.info(`Avvio elaborazione AI per conversazione ${conversation.id}`);
-      this.queue.enqueue(conversation.id, async () => {
-        await this.processWithAI(conversation.id, prismaMessage, config);
-      });
+      console.log(`🚀 Avvio elaborazione AI per conversazione ${conversation.id} tramite BullMQ`);
+      
+      // Usa BullMQ per processare il messaggio WhatsApp
+      try {
+        await this.queueService.addJob('whatsapp-processing', 'process-ai-message', {
+          conversationId: conversation.id,
+          messageId: prismaMessage.id,
+          content: prismaMessage.content,
+          from: from,
+          contactName: contactName,
+          timestamp: new Date().toISOString()
+        });
+        console.log(`✅ Messaggio WhatsApp aggiunto alla coda BullMQ`);
+      } catch (error) {
+        console.error(`❌ Errore aggiunta job WhatsApp a BullMQ:`, error);
+        // Fallback alla coda in memoria se BullMQ non disponibile
+        console.log(`🔄 Fallback: processo il messaggio direttamente`);
+        await this.processWithAI(conversation.id, prismaMessage, config, false);
+      }
     } else {
-      logger.info(`AI non abilitata: aiEnabled=${config.aiEnabled}, autoReply=${config.autoReply}`);
+      console.log(`❌ AI non abilitata: aiEnabled=${config.aiEnabled}, autoReply=${config.autoReply}`);
     }
   }
 
-  private async processWithAI(
+  async processWithAI(
     conversationId: string,
     message: { id: string; content: string },
-    configOverride?: Awaited<ReturnType<typeof this.ensureConfig>>
+    configOverride?: Awaited<ReturnType<typeof this.ensureConfig>>,
+    fromBullMQ: boolean = false
   ) {
-    console.log('=== AI PROCESSING DEBUG ===');
-    console.log('processWithAI called with:', { conversationId, messageId: message.id, content: message.content });
     const config = configOverride || (await this.ensureConfig());
-    console.log('Config loaded:', { aiEnabled: config.aiEnabled, autoReply: config.autoReply, aiModel: config.aiModel });
+    
+    // Carica il modello AI dalle impostazioni centrali dinamiche
+    let aiModel = config.aiModel || 'mistral:7b';
+    try {
+      const settingsRecord = await prisma.setting.findUnique({
+        where: { key: 'app:base' }
+      });
+      
+      if (settingsRecord?.value) {
+        const settings = JSON.parse(settingsRecord.value);
+        if (settings.ai?.model) {
+          aiModel = settings.ai.model;
+          logger.info(`🎯 Modello AI dinamico caricato: ${aiModel}`);
+        }
+      }
+    } catch (error) {
+      logger.warn('Error loading dynamic AI model, using WhatsApp config fallback:', error);
+    }
+    
+    logger.info(`🤖 Elaborazione AI con modello: ${aiModel} (aiEnabled=${config.aiEnabled}, autoReply=${config.autoReply})`);
 
     if (config.businessHoursEnabled && !this.isWithinBusinessHours(config)) {
-      console.log('Business hours check: studio chiuso');
       const autoReply = `Grazie per il tuo messaggio. Il nostro studio è attualmente chiuso. Orari: ${config.businessHoursStart}-${config.businessHoursEnd}. Ti risponderemo appena possibile.`;
       await this.sendAIReply(conversationId, autoReply, message.id, config);
       return;
     }
-    console.log('Business hours check: studio aperto, procedo con AI');
 
     try {
-      console.log('=== TRY BLOCK START ===');
       // Ottieni il contesto della conversazione
-      console.log('Fetching conversation context...');
       const conversation = await prisma.whatsappConversation.findUnique({
         where: { id: conversationId },
         include: {
@@ -353,28 +397,25 @@ class WhatsAppBusinessService extends EventEmitter {
           assignedTo: true
         }
       });
-      console.log('Conversation found:', { id: conversation?.id, phone: conversation?.contactPhone });
 
       // Costruisci la storia della conversazione
-      console.log('Fetching message history...');
       const history = await prisma.whatsappMessage.findMany({
         where: { conversationId },
         orderBy: { timestamp: 'desc' },
         take: config.maxContextMessages
       });
-      console.log('Message history found:', history.length, 'messages');
 
       // Prepara i messaggi per l'AI con tools
       const messages: ChatMessageWithTools[] = [];
 
       // Aggiungi la storia della conversazione
       for (const msg of history.reverse()) {
-        if (msg.authorType === 'USER') {
+        if (msg.authorType === WhatsappAuthorType.CLIENT) {
           messages.push({
             role: 'user',
             content: msg.content
           });
-        } else if (msg.authorType === 'AI' && msg.aiResponse) {
+        } else if (msg.authorType === WhatsappAuthorType.BUSINESS_AI && msg.aiResponse) {
           messages.push({
             role: 'assistant',
             content: msg.aiResponse
@@ -394,7 +435,7 @@ class WhatsAppBusinessService extends EventEmitter {
         userId: conversation?.assignedToId || undefined,
         userPhone: conversation?.contactPhone || '',
         messageHistory: messages.map(msg => ({
-          role: msg.role,
+          role: msg.role as 'user' | 'assistant' | 'system',
           content: msg.content,
           timestamp: new Date().toISOString()
         }))
@@ -405,18 +446,11 @@ class WhatsAppBusinessService extends EventEmitter {
       // Carica timeout WhatsApp dalle impostazioni  
       const whatsappTimeout = await this.getWhatsappTimeout();
 
-      // Usa l'AI con tools e timeout WhatsApp
-      console.log('=== AI CALL DEBUG ===');
-      console.log('Calling aiService.chatWithTools with:', { 
-        messagesCount: messages.length, 
-        context: aiContext, 
-        timeout: whatsappTimeout 
-      });
+      // Usa l'AI con tools, timeout WhatsApp e modello dinamico
+      logger.info(`🚀 Chiamando AI con modello: ${aiModel}, timeout: ${whatsappTimeout}ms`);
+      
+      // Usa il metodo esistente con modello dinamico caricato dall'aiService
       const aiResponse = await aiService.chatWithTools(messages, aiContext, 5, whatsappTimeout);
-      console.log('AI Response received:', { 
-        content: aiResponse.content?.substring(0, 100) + '...', 
-        toolCalls: aiResponse.toolCalls?.length || 0 
-      });
 
       // Estrai il contenuto della risposta pulito
       let responseText = aiResponse.content;

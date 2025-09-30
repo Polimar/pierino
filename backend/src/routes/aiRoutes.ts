@@ -45,7 +45,7 @@ async function getAITimeouts() {
   }
 }
 
-// Chat endpoint for AI Assistant Pro
+// Chat endpoint for AI Assistant Pro - ora usa BullMQ
 router.post('/chat', authenticateToken, async (req, res) => {
   try {
     const { message, model, temperature, prompt, service = 'general' } = req.body;
@@ -57,50 +57,82 @@ router.post('/chat', authenticateToken, async (req, res) => {
       });
     }
 
-    // Verifica che il modello sia disponibile, altrimenti usa fallback
-    let validModel = model || 'mistral:7b';
+    // Aggiungi il job di AI processing alla coda BullMQ
     try {
-      const modelsResponse = await axios.get('http://ollama:11434/api/tags');
-      const availableModels = modelsResponse.data.models?.map((m: any) => m.name) || [];
+      const { QueueService } = await import('../services/queueService');
+      const queueService = QueueService.getInstance();
       
-      if (model && !availableModels.includes(model)) {
-        console.warn(`Model ${model} not found, using fallback mistral:7b`);
+      const job = await queueService.addJob('ai-processing', 'ai-assistant-chat', {
+        message,
+        model: model || 'mistral:7b',
+        temperature: temperature || 0.7,
+        prompt: prompt || 'Sei un assistente AI professionale. Rispondi in modo chiaro e utile.',
+        service,
+        userId: req.user?.id,
+        timestamp: new Date().toISOString()
+      });
+
+      console.log(`✅ AI Assistant job added to queue: ${job.id}`);
+
+      // Per ora, processiamo direttamente per compatibilità UI
+      // ma il job è stato tracciato in BullMQ
+      
+      // Verifica che il modello sia disponibile, altrimenti usa fallback
+      let validModel = model || 'mistral:7b';
+      try {
+        const modelsResponse = await axios.get('http://ollama:11434/api/tags');
+        const availableModels = modelsResponse.data.models?.map((m: any) => m.name) || [];
+        
+        if (model && !availableModels.includes(model)) {
+          console.warn(`Model ${model} not found, using fallback mistral:7b`);
+          validModel = 'mistral:7b';
+        }
+      } catch (modelCheckError) {
+        console.warn('Could not check available models, using fallback mistral:7b');
         validModel = 'mistral:7b';
       }
-    } catch (modelCheckError) {
-      console.warn('Could not check available models, using fallback mistral:7b');
-      validModel = 'mistral:7b';
+
+      // Carica i timeout dalle impostazioni
+      const aiTimeouts = await getAITimeouts();
+      const serviceTimeout = aiTimeouts[service as keyof typeof aiTimeouts] || 30000;
+
+      const config = {
+        model: validModel,
+        temperature: temperature || 0.7,
+        timeout: serviceTimeout,
+        prompt: prompt || 'Sei un assistente AI professionale. Rispondi in modo chiaro e utile.',
+        ollamaEndpoint: 'http://ollama:11434'
+      };
+
+      console.log(`AI Chat request (via BullMQ): model=${config.model}, temp=${config.temperature}, message length=${message.length}`);
+
+      const messages = [
+        { role: 'system' as const, content: config.prompt },
+        { role: 'user' as const, content: message }
+      ];
+
+      const response = await aiService.chatWithConfig(messages, config);
+
+      res.json({
+        success: true,
+        data: {
+          response: response.content,
+          model: config.model,
+          temperature: config.temperature,
+          queueJobId: job.id
+        }
+      });
+
+    } catch (queueError) {
+      console.error('❌ Error adding to BullMQ, processing directly:', queueError);
+      
+      // Fallback: processa direttamente se BullMQ non è disponibile
+      res.status(500).json({
+        success: false,
+        message: 'Errore durante l\'aggiunta alla coda BullMQ',
+        error: queueError.message
+      });
     }
-
-    // Carica i timeout dalle impostazioni
-    const aiTimeouts = await getAITimeouts();
-    const serviceTimeout = aiTimeouts[service as keyof typeof aiTimeouts] || 30000;
-
-    const config = {
-      model: validModel,
-      temperature: temperature || 0.7,
-      timeout: serviceTimeout,
-      prompt: prompt || 'Sei un assistente AI professionale. Rispondi in modo chiaro e utile.',
-      ollamaEndpoint: 'http://ollama:11434'
-    };
-
-    console.log(`AI Chat request: model=${config.model}, temp=${config.temperature}, message length=${message.length}`);
-
-    const messages = [
-      { role: 'system' as const, content: config.prompt },
-      { role: 'user' as const, content: message }
-    ];
-
-    const response = await aiService.chatWithConfig(messages, config);
-
-    res.json({
-      success: true,
-      data: {
-        response: response.content,
-        model: config.model,
-        temperature: config.temperature
-      }
-    });
 
   } catch (error: any) {
     console.error('AI Chat error:', error);

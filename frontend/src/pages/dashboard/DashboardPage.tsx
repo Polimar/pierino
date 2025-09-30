@@ -88,19 +88,17 @@ const urgentTasks = [
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
-      {/* Header con Widget Code */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Panoramica delle attività del tuo studio
-          </p>
-        </div>
-        
-        {/* Widget Code in alto a destra */}
-        <div className="flex-shrink-0">
-          <QueueStatusWidget compact={true} refreshInterval={10000} />
-        </div>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Panoramica delle attività del tuo studio
+        </p>
+      </div>
+
+      {/* Widget Code Orizzontale - sopra le stats */}
+      <div className="w-full">
+        <QueueStatusWidget compact={false} refreshInterval={10000} />
       </div>
 
       {/* Stats */}

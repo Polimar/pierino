@@ -169,6 +169,25 @@ class AIService {
     timeout: number = 30000
   ): Promise<AIResponseWithTools> {
     try {
+      // Carica modello dinamico dalle impostazioni
+      let aiModel = 'phi3:mini'; // fallback
+      try {
+        const settingsRecord = await prisma.setting.findUnique({
+          where: { key: 'app:base' }
+        });
+        
+        if (settingsRecord?.value) {
+          const settings = JSON.parse(settingsRecord.value);
+          if (settings.ai?.model) {
+            aiModel = settings.ai.model;
+          }
+        }
+      } catch (error) {
+        console.warn('Error loading dynamic AI model in aiService, using fallback:', error);
+      }
+
+      console.log(`🎯 AIService usando modello dinamico: ${aiModel}`);
+
       // Prepara i messaggi per Ollama
       const ollamaMessages = messages.map(msg => ({
         role: msg.role === 'tool' ? 'assistant' : msg.role,
@@ -196,7 +215,7 @@ Se non hai bisogno di usare tools, rispondi normalmente in italiano.`
       });
 
       const response = await axios.post(`http://ollama:11434/api/chat`, {
-        model: 'phi3:mini', // Usa il modello configurato per WhatsApp
+        model: aiModel, // Usa il modello configurato dinamicamente
         messages: ollamaMessages,
         stream: false,
         options: {

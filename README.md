@@ -521,10 +521,10 @@ enum PracticeStatus {
 - `POST /api/whatsapp/ocr` - Estrai testo da immagine
 - `GET /api/whatsapp/media/:messageId` - Download media
 
-#### AI Assistente (AGGIORNATO v1.2!)
+#### AI Assistente (AGGIORNATO v1.3!)
 - `GET /api/ai/models` - Lista modelli disponibili da Ollama in tempo reale
 - `POST /api/ai/pull-model` - Scarica nuovo modello da Ollama
-- `POST /api/ai/chat` - Chat diretta con AI (configurazione dinamica)
+- `POST /api/ai/chat` - Chat diretta con AI (configurazione dinamica + BullMQ)
 - `POST /api/ai/test-tools` - Test framework AI Tools con function calling
 - `POST /api/ai/configure` - Configura provider AI
 - `GET /api/ai/config` - Ottieni configurazione AI
@@ -536,6 +536,17 @@ enum PracticeStatus {
 - `POST /api/ai/classify-practice` - Classifica tipo pratica
 - `GET /api/ai/suggestions` - Suggerimenti AI contestuali
 - `POST /api/ai/summarize` - Riassumi conversazione/pratica
+
+#### BullMQ Queue System (NUOVO!)
+- `GET /api/queues/status` - Stato dettagliato di tutte le code
+- `GET /api/queues/metrics` - Metriche complete con statistiche
+- `GET /api/queues/health` - Health check sistema code
+- `POST /api/queues/:queueName/pause` - Pausa coda specifica
+- `POST /api/queues/:queueName/resume` - Riprendi coda specifica
+- `POST /api/queues/:queueName/clean` - Pulisci job completati/falliti
+- `POST /api/queues/:queueName/jobs` - Aggiungi job a coda specifica
+- `GET /api/queues/:queueName/jobs` - Lista job di una coda
+- `DELETE /api/queues/:queueName/jobs/:jobId` - Elimina job specifico
 
 #### Media Management
 - `POST /api/media/upload` - Upload file media
@@ -1157,11 +1168,14 @@ npm run health           # Health check
 - ✅ **AI Assistant Pro** - Chat diretta separata nel sidebar
 - ✅ **Framework AI Tools** - 5 tools per function calling implementati
 - ✅ **Frontend WhatsApp** - Solo conversazioni (configurazione spostata)
+- ✅ **BullMQ Queue System** - Sistema code avanzato per elaborazione asincrona
+- ✅ **WhatsApp AI Integration** - Elaborazione messaggi con AI tramite BullMQ
+- ✅ **Modelli AI Dinamici** - Selezione automatica modelli dalle impostazioni
 - ✅ **Docker Setup** - Deploy ready con tutti i servizi
 - ✅ **Ubuntu Deployment** - Script automatico + documentazione
 - 🔄 **CRUD Pratiche** - In sviluppo
 - 🔄 **Email System** - In pianificazione
-- 🔄 **Dashboard Real-time** - In pianificazione
+- 🔄 **Dashboard Real-time** - Con widget BullMQ funzionante
 
 ## 🏆 Funzionalità Implementate
 
@@ -1189,12 +1203,16 @@ npm run health           # Health check
 - Gestione note e documenti allegati
 - Contatori statistiche automatici
 
-### ✅ WhatsApp Business API Completo
+### ✅ WhatsApp Business API Completo + BullMQ Integration
 - **Configurazione OAuth** con Client ID, Access Token, Business Account ID
 - **Webhook Facebook** con token di verifica generato automaticamente
 - **Test connessione** integrato per validazione credenziali
 - **Messaggi real-time** con supporto completo multimediale (testo, audio, immagini, video, documenti)
 - **AI automatica** per risposte intelligenti e gestione conversazioni
+- **BullMQ Queue System** per elaborazione asincrona messaggi WhatsApp
+- **Dashboard Queue Real-time** con metriche e statistiche live
+- **Modelli AI Dinamici** caricati automaticamente dalle impostazioni centrali
+- **Worker Protection** contro job malformati e gestione errori robusti
 - **Orari di ufficio** configurabili per risposte automatiche
 - **Persistenza JSON** per conversazioni e configurazioni
 - **Frontend completo** con interfaccia moderna per gestione WhatsApp
@@ -1202,8 +1220,23 @@ npm run health           # Health check
 - **Creazione clienti** da contatti WhatsApp
 - **Storage sicuro** media con organizzazione automatica
 
-### ✅ AI Assistente Centralizzato (AGGIORNATO v1.2!)
+### ✅ BullMQ Queue System (NUOVO!)
+- **Sistema Code Avanzato** con Redis per elaborazione asincrona
+- **6 Code Specializzate**: AI Processing, WhatsApp, Email, Media, Reports, Notifications
+- **Dashboard Real-time** con widget orizzontale e metriche live
+- **Worker Protection** con validazione dati e gestione errori robusti
+- **WhatsApp Integration** completa tramite BullMQ per scalabilità
+- **AI Processing Asincrono** per elaborazione messaggi senza blocchi
+- **Metriche Dettagliate**: job totali, successi, fallimenti, rate di successo
+- **Health Check** integrato per monitoraggio stato code
+- **Gestione Job** con pause, resume, cleanup automatico
+- **Rate Limiting** e timeout configurabili per ogni servizio
+- **Logging Avanzato** per debug e monitoraggio
+- **API REST Complete** per gestione code da frontend
+
+### ✅ AI Assistente Centralizzato (AGGIORNATO v1.3!)
 - **Configurazione AI Centralizzata** nella sezione "AI Core" delle Impostazioni
+- **Modelli AI Dinamici** caricati automaticamente dalle impostazioni per tutti i servizi
 - **Selezione Dinamica Modelli** da Ollama in tempo reale (niente più hardcoded)
 - **Download Nuovi Modelli** con interfaccia dedicata e pull automatico
 - **Prompt Personalizzabili** dalle impostazioni database (niente più hardcoded)
@@ -1355,7 +1388,42 @@ MIT License - Vedi [LICENSE](./LICENSE) file per dettagli.
 
 **Sviluppato con ❤️ per modernizzare gli studi tecnici italiani**
 
-*Versione 1.2.0 - Settembre 2025*
+*Versione 1.3.0 - Settembre 2025*
+
+## 📅 Changelog v1.3.0
+
+### 🚀 **BullMQ Queue System (NOVITÀ MAGGIORE!)**
+- ✅ **Sistema Code Avanzato** con Redis per elaborazione asincrona e scalabilità
+- ✅ **6 Code Specializzate** per AI Processing, WhatsApp, Email, Media, Reports, Notifications
+- ✅ **Dashboard Real-time** con widget orizzontale e metriche live sul dashboard
+- ✅ **WhatsApp Integration** completa tramite BullMQ per elaborazione messaggi scalabile
+- ✅ **Worker Protection** con validazione dati e gestione errori robusti
+- ✅ **AI Processing Asincrono** per elaborazione messaggi senza blocchi UI
+- ✅ **Metriche Complete** con job totali, successi, fallimenti, rate di successo
+- ✅ **API REST Complete** per gestione code: status, metrics, health, pause/resume, cleanup
+- ✅ **Health Check Integrato** per monitoraggio continuo stato sistema
+- ✅ **Logging Avanzato** per debug e troubleshooting
+
+### 🎯 **Modelli AI Dinamici (MIGLIORAMENTO CRITICO!)**
+- ✅ **Modelli AI Dinamici** caricati automaticamente dalle impostazioni centrali
+- ✅ **WhatsApp AI Unificato** usa stesso modello configurato in AI Assistant Pro
+- ✅ **Configurazione Centralizzata** - un solo posto per gestire tutti i modelli AI
+- ✅ **Fallback Sicuro** con modelli di default se configurazione non disponibile
+- ✅ **Log Puliti** ridotto verbosità debug per migliore leggibilità
+- ✅ **Performance Ottimizzata** con caricamento modelli on-demand
+
+### 🔧 **Miglioramenti Sistema**
+- 🔄 **TypeScript Errors Fixed** - Risolti tutti gli errori di compilazione
+- 🧹 **Code Cleanup** - Codice pulito e type-safe al 100%
+- 🛡️ **Error Handling** robusto per job malformati e connessioni Redis
+- 📊 **Dashboard Migliorata** con widget BullMQ orizzontale funzionante
+
+### 🐛 **Bug Fix Critici**
+- 🐛 Risolto problema modelli AI hardcoded in WhatsApp
+- 🐛 Sistemati errori TypeScript in queueService e whatsappBusinessService
+- 🐛 Corretta gestione job BullMQ malformati con validazione dati
+- 🐛 Fix import/export per WhatsAppBusinessService singleton
+- 🐛 Risolto problema logger che causava errori silenziosi
 
 ## 📅 Changelog v1.2.0
 
