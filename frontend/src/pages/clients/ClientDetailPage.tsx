@@ -1,14 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Edit, Phone, Mail, MessageSquare, MapPin, Calendar, FileText, Plus } from 'lucide-react';
+import { ArrowLeft, Edit, Phone, Mail, MessageSquare, MapPin, Calendar, FileText, Plus, Building2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useClientStore } from '@/store/clientStore';
 import { formatDate, formatDateTime } from '@/utils/date';
 import { toast } from 'sonner';
+import NewClientModal from '@/components/clients/NewClientModal';
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [showEditModal, setShowEditModal] = useState(false);
   const { 
     selectedClient: client, 
     isLoading, 
@@ -99,7 +101,7 @@ export default function ClientDetailPage() {
             </p>
           </div>
         </div>
-        <Button>
+        <Button onClick={() => setShowEditModal(true)}>
           <Edit className="h-4 w-4 mr-2" />
           Modifica
         </Button>
@@ -125,79 +127,76 @@ export default function ClientDetailPage() {
                 <h3 className="text-lg font-medium text-gray-900">
                   {client.firstName} {client.lastName}
                 </h3>
-                {client.birthDate && (
-                  <p className="text-sm text-gray-500">
-                    Nato il {formatDate(client.birthDate)}
-                    {client.birthPlace && ` a ${client.birthPlace}`}
-                  </p>
-                )}
+                <p className="text-sm text-gray-500">
+                  {client.birthDate ? `Nato il ${formatDate(client.birthDate)}` : 'Data di nascita non disponibile'}
+                  {client.birthPlace && ` a ${client.birthPlace}`}
+                </p>
               </div>
 
+              {/* Contatti */}
               <div className="border-t pt-4 space-y-3">
-                {client.email && (
-                  <div className="flex items-center space-x-3">
-                    <Mail className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-900">{client.email}</span>
-                  </div>
-                )}
-                {client.phone && (
-                  <div className="flex items-center space-x-3">
-                    <Phone className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-900">{client.phone}</span>
-                  </div>
-                )}
-                {client.whatsappNumber && (
-                  <div className="flex items-center space-x-3">
-                    <MessageSquare className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-900">{client.whatsappNumber}</span>
-                  </div>
-                )}
-                {(client.address || client.city) && (
-                  <div className="flex items-start space-x-3">
-                    <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
-                    <div className="text-sm text-gray-900">
-                      {client.address && <div>{client.address}</div>}
-                      {client.city && (
-                        <div>
-                          {client.city}
-                          {client.province && ` (${client.province})`}
-                          {client.postalCode && ` - ${client.postalCode}`}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                  <Phone className="h-4 w-4" /> Contatti
+                </h4>
+                <div className="flex items-center space-x-3">
+                  <Mail className="h-4 w-4 text-gray-400" />
+                  <span className="text-sm text-gray-900">{client.email || 'Email non disponibile'}</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Phone className="h-4 w-4 text-gray-400" />
+                  <span className="text-sm text-gray-900">{client.phone || 'Telefono non disponibile'}</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <MessageSquare className="h-4 w-4 text-gray-400" />
+                  <span className="text-sm text-gray-900">{client.whatsappNumber || 'WhatsApp non disponibile'}</span>
+                </div>
               </div>
 
-              {(client.fiscalCode || client.vatNumber) && (
-                <div className="border-t pt-4 space-y-2">
-                  {client.fiscalCode && (
-                    <div>
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                        Codice Fiscale
-                      </span>
-                      <p className="text-sm text-gray-900">{client.fiscalCode}</p>
-                    </div>
-                  )}
-                  {client.vatNumber && (
-                    <div>
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                        Partita IVA
-                      </span>
-                      <p className="text-sm text-gray-900">{client.vatNumber}</p>
-                    </div>
+              {/* Residenza */}
+              <div className="border-t pt-4 space-y-3">
+                <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                  <MapPin className="h-4 w-4" /> Residenza
+                </h4>
+                <div className="text-sm text-gray-900">
+                  <div>{client.address || 'Indirizzo non disponibile'}</div>
+                  <div>
+                    {client.city || 'Città'} {client.province && `(${client.province})`}
+                    {client.postalCode && ` - ${client.postalCode}`}
+                  </div>
+                  {client.country && (
+                    <div className="text-xs text-gray-500 mt-1">Paese: {client.country}</div>
                   )}
                 </div>
-              )}
+              </div>
 
-              {client.notes && (
-                <div className="border-t pt-4">
+              {/* Dati Fiscali */}
+              <div className="border-t pt-4 space-y-3">
+                <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                  <Building2 className="h-4 w-4" /> Dati Fiscali
+                </h4>
+                <div>
                   <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    Note
+                    Codice Fiscale
                   </span>
-                  <p className="mt-1 text-sm text-gray-900">{client.notes}</p>
+                  <p className="text-sm text-gray-900">{client.fiscalCode || 'Non disponibile'}</p>
                 </div>
-              )}
+                <div>
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Partita IVA
+                  </span>
+                  <p className="text-sm text-gray-900">{client.vatNumber || 'Non disponibile'}</p>
+                </div>
+              </div>
+
+              {/* Note */}
+              <div className="border-t pt-4">
+                <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2 mb-2">
+                  <FileText className="h-4 w-4" /> Note
+                </h4>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                  {client.notes || 'Nessuna nota disponibile'}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -359,6 +358,24 @@ export default function ClientDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Modal Modifica (TODO: implementare form di modifica) */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowEditModal(false)}>
+          <div className="bg-white rounded-lg p-6 max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Modifica Cliente</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              La funzione di modifica cliente sarà implementata nel prossimo aggiornamento.
+              Per ora puoi visualizzare tutti i dettagli del cliente.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setShowEditModal(false)}>
+                OK
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
