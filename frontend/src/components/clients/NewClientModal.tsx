@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import SimpleVoiceForm from './SimpleVoiceForm';
+import SequentialVoiceForm from './SequentialVoiceForm';
 
 interface NewClientModalProps {
   isOpen: boolean;
@@ -49,7 +49,7 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
     {
       id: 'voice',
       name: 'Inserimento Vocale',
-      description: 'Dettagli i dati con comandi vocali diretti',
+      description: 'Campi lampeggianti sequenziali con registrazione',
       icon: Mic,
       color: 'bg-green-500',
       available: true,
@@ -82,7 +82,7 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
 
       case 'voice':
         return (
-          <SimpleVoiceForm 
+          <SequentialVoiceForm 
             onSuccess={() => {
               setSelectedMode(null);
               onClose();
