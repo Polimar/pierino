@@ -211,6 +211,113 @@ router.get('/test', async (req, res) => {
   }
 });
 
+// Extract client data from voice transcript or text
+router.post('/extract-client-data', authenticateToken, async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Testo richiesto'
+      });
+    }
+
+    const extractionPrompt = `Sei un assistente AI specializzato nell'estrazione di dati anagrafici da testo libero o trascrizioni vocali.
+
+ISTRUZIONI:
+1. Analizza il seguente testo e estrai TUTTI i dati anagrafici presenti
+2. Restituisci SOLO un oggetto JSON valido senza commenti o testo aggiuntivo
+3. Se un dato non è presente, usa null
+4. Normalizza i numeri di telefono con formato +39
+5. Converti il codice fiscale in MAIUSCOLO
+6. Normalizza le province in sigla a 2 lettere MAIUSCOLE (es. Milano -> MI)
+
+FORMATO JSON RICHIESTO:
+{
+  "firstName": string | null,
+  "lastName": string | null,
+  "email": string | null,
+  "phone": string | null,
+  "whatsappNumber": string | null,
+  "fiscalCode": string | null,
+  "vatNumber": string | null,
+  "address": string | null,
+  "city": string | null,
+  "province": string | null,
+  "postalCode": string | null,
+  "country": string | null,
+  "birthDate": string (formato YYYY-MM-DD) | null,
+  "birthPlace": string | null,
+  "notes": string | null
+}
+
+TESTO DA ANALIZZARE:
+${text}
+
+RISPOSTA (solo JSON):`;
+
+    const messages = [
+      { role: 'user' as const, content: extractionPrompt }
+    ];
+
+    const response = await aiService.chatWithConfig(messages, {
+      model: 'mistral:7b',
+      temperature: 0.3, // Bassa temperatura per risposte più precise
+      timeout: 45000
+    });
+
+    // Parse JSON response
+    let clientData;
+    try {
+      // Pulisci la risposta da eventuali markdown o testo extra
+      let jsonText = response.content.trim();
+      
+      // Rimuovi markdown code blocks se presenti
+      jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      
+      // Trova il JSON object
+      const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[0];
+      }
+      
+      clientData = JSON.parse(jsonText);
+      
+      // Validazione base
+      if (!clientData.firstName || !clientData.lastName) {
+        throw new Error('Nome e cognome non estratti correttamente');
+      }
+    } catch (parseError: any) {
+      console.error('JSON parse error:', parseError);
+      console.error('AI Response:', response.content);
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Impossibile estrarre dati validi dal testo. Fornisci informazioni più chiare.',
+        aiResponse: response.content
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Dati estratti con successo',
+      data: {
+        clientData,
+        originalText: text
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Extract client data error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nell\'estrazione dei dati',
+      error: error.message
+    });
+  }
+});
+
 // Test endpoint for AI tools functionality
 router.post('/test-tools', authenticateToken, async (req, res) => {
   try {

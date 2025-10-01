@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import VoiceClientForm from './VoiceClientForm';
 
 interface NewClientModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ interface NewClientModalProps {
 
 export default function NewClientModal({ isOpen, onClose, editClient }: NewClientModalProps) {
   const [selectedMode, setSelectedMode] = useState<string | null>(editClient ? 'manual' : null);
+  const [voiceExtractedData, setVoiceExtractedData] = useState<any>(null);
 
   const modes = [
     {
@@ -50,8 +52,7 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
       description: 'Dettagli i dati del cliente vocalmente',
       icon: Mic,
       color: 'bg-green-500',
-      available: false,
-      badge: 'In sviluppo',
+      available: true,
     },
     {
       id: 'ai',
@@ -77,20 +78,20 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
         return <ManualClientForm onSuccess={() => {
           setSelectedMode(null);
           onClose();
-        }} editData={editClient} />;
+        }} editData={editClient || voiceExtractedData} />;
 
       case 'voice':
         return (
-          <div className="text-center py-8">
-            <Mic className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Modalità Vocale</h3>
-            <p className="text-gray-600 mb-4">
-              Questa funzionalità richiede l'accesso al microfono e l'implementazione del riconoscimento vocale.
-            </p>
-            <Badge variant="outline" className="text-orange-600 border-orange-600">
-              In sviluppo
-            </Badge>
-          </div>
+          <VoiceClientForm 
+            onSuccess={() => {
+              setSelectedMode(null);
+              onClose();
+            }}
+            onDataExtracted={(data) => {
+              setVoiceExtractedData(data);
+              setSelectedMode('manual');
+            }}
+          />
         );
 
       case 'ai':
@@ -160,14 +161,16 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
               <h3 className="text-lg font-semibold">
                 {modes.find(m => m.id === selectedMode)?.name}
               </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedMode(null)}
-              >
-                <X className="h-4 w-4 mr-2" />
-                Cambia modalità
-              </Button>
+              {!editClient && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedMode(null)}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cambia modalità
+                </Button>
+              )}
             </div>
 
             {renderModeContent()}
