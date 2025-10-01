@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-type Role = 'ADMIN' | 'GEOMETRA' | 'SECRETARY';
+type Role = 'ADMIN' | 'OPERATOR';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -89,8 +89,7 @@ export const requireRole = (allowedRoles: Role[]) => {
 };
 
 export const requireAdmin = requireRole(['ADMIN']);
-export const requireGeometraOrAdmin = requireRole(['GEOMETRA', 'ADMIN']);
-export const requireAnyRole = requireRole(['ADMIN', 'GEOMETRA', 'SECRETARY']);
+export const requireAnyRole = requireRole(['ADMIN', 'OPERATOR']);
 
 export const generateTokens = (user: { id: string; email: string; role: Role }) => {
   const accessToken = jwt.sign(

@@ -11,7 +11,7 @@ interface User {
   lastName: string;
   phone?: string;
   whatsappNumber?: string;
-  role: 'ADMIN' | 'GEOMETRA' | 'SECRETARY';
+  role: 'ADMIN' | 'OPERATOR';
   createdAt: string;
   lastLogin?: string;
 }
@@ -20,7 +20,7 @@ interface NewUser {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'ADMIN' | 'GEOMETRA' | 'SECRETARY';
+  role: 'ADMIN' | 'OPERATOR';
 }
 
 const UsersPage: React.FC = () => {
@@ -32,7 +32,7 @@ const UsersPage: React.FC = () => {
     email: '',
     firstName: '',
     lastName: '',
-    role: 'SECRETARY'
+    role: 'OPERATOR'
   });
   const [passwordData, setPasswordData] = useState({
     userId: '',
@@ -125,7 +125,7 @@ const UsersPage: React.FC = () => {
       email: '',
       firstName: '',
       lastName: '',
-      role: 'SECRETARY'
+      role: 'OPERATOR'
     });
     setShowAddForm(false);
     setEditingUser(null);
@@ -145,8 +145,7 @@ const UsersPage: React.FC = () => {
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'ADMIN': return <Crown className="w-4 h-4 text-yellow-500" />;
-      case 'GEOMETRA': return <Shield className="w-4 h-4 text-blue-500" />;
-      case 'SECRETARY': return <User className="w-4 h-4 text-gray-500" />;
+      case 'OPERATOR': return <User className="w-4 h-4 text-blue-500" />;
       default: return <User className="w-4 h-4 text-gray-500" />;
     }
   };
@@ -154,8 +153,7 @@ const UsersPage: React.FC = () => {
   const getRoleName = (role: string) => {
     switch (role) {
       case 'ADMIN': return 'Amministratore';
-      case 'GEOMETRA': return 'Geometra';
-      case 'SECRETARY': return 'Segreteria';
+      case 'OPERATOR': return 'Operatore';
       default: return role;
     }
   };
@@ -307,8 +305,7 @@ const UsersPage: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 >
-                  <option value="SECRETARY">Cliente</option>
-                  <option value="GEOMETRA">Geometra</option>
+                  <option value="OPERATOR">Operatore</option>
                   <option value="ADMIN">Amministratore</option>
                 </select>
               </div>

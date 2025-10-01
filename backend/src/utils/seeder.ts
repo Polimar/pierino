@@ -17,39 +17,26 @@ export async function seedDatabase() {
       return;
     }
 
-    // Create admin user
+    // Create main admin user (Pierino AI)
     const adminPassword = await bcrypt.hash('password123', config.BCRYPT_ROUNDS);
     const admin = await prisma.user.create({
       data: {
-        email: 'admin@geometra.com',
+        email: 'pierinoai@vps-3dee2600.vps.ovh.net',
         password: adminPassword,
         role: Role.ADMIN,
-        firstName: 'Admin',
-        lastName: 'Sistema',
+        firstName: 'Pierino',
+        lastName: 'AI',
         isActive: true,
       },
     });
 
-    // Create geometra user
-    const geometraPassword = await bcrypt.hash('password123', config.BCRYPT_ROUNDS);
-    const geometra = await prisma.user.create({
+    // Create sample operator user
+    const operatorPassword = await bcrypt.hash('password123', config.BCRYPT_ROUNDS);
+    const operator = await prisma.user.create({
       data: {
-        email: 'geometra@geometra.com',
-        password: geometraPassword,
-        role: Role.GEOMETRA,
-        firstName: 'Mario',
-        lastName: 'Rossi',
-        isActive: true,
-      },
-    });
-
-    // Create secretary user
-    const secretaryPassword = await bcrypt.hash('password123', config.BCRYPT_ROUNDS);
-    const secretary = await prisma.user.create({
-      data: {
-        email: 'segreteria@geometra.com',
-        password: secretaryPassword,
-        role: Role.SECRETARY,
+        email: 'segreteria@vps-3dee2600.vps.ovh.net',
+        password: operatorPassword,
+        role: Role.OPERATOR,
         firstName: 'Anna',
         lastName: 'Verdi',
         isActive: true,
@@ -226,7 +213,7 @@ export async function seedDatabase() {
       prisma.activity.create({
         data: {
           practiceId: practices[0].id,
-          userId: geometra.id,
+          userId: admin.id,
           type: 'SITE_VISIT',
           title: 'Sopralluogo iniziale',
           description: 'Verifica stato attuale e misurazioni',
@@ -237,7 +224,7 @@ export async function seedDatabase() {
       prisma.activity.create({
         data: {
           practiceId: practices[0].id,
-          userId: secretary.id,
+          userId: operator.id,
           type: 'DOCUMENT_REVIEW',
           title: 'Preparazione documentazione',
           description: 'Raccolta e verifica documenti necessari',
@@ -247,7 +234,7 @@ export async function seedDatabase() {
       prisma.activity.create({
         data: {
           practiceId: practices[2].id,
-          userId: geometra.id,
+          userId: admin.id,
           type: 'MEETING',
           title: 'Incontro con cliente',
           description: 'Discussione dettagli progetto e tempistiche',
@@ -306,7 +293,7 @@ export async function seedDatabase() {
       }),
       prisma.notification.create({
         data: {
-          userId: secretary.id,
+          userId: operator.id,
           type: 'WHATSAPP_MESSAGE',
           title: 'Nuovo messaggio WhatsApp',
           message: 'Marco Esposito ha inviato un messaggio',
@@ -354,9 +341,8 @@ export async function seedDatabase() {
 
     logger.info('Database seeding completed successfully');
     logger.info('Demo credentials:');
-    logger.info('Admin: admin@geometra.com / password123');
-    logger.info('Geometra: geometra@geometra.com / password123');
-    logger.info('Segreteria: segreteria@geometra.com / password123');
+    logger.info('Admin: pierinoai@vps-3dee2600.vps.ovh.net / password123');
+    logger.info('Operator: segreteria@vps-3dee2600.vps.ovh.net / password123');
 
   } catch (error) {
     logger.error('Error seeding database:', error);

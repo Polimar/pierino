@@ -15,7 +15,7 @@ model User {
   id                   String    @id @default(cuid())
   email                String    @unique
   password             String
-  role                 Role      @default(SECRETARY)
+  role                 Role      @default(OPERATOR)
   firstName            String?
   lastName             String?
   phone                String? // Aggiunto campo telefono con prefisso +39
@@ -357,8 +357,7 @@ model Setting {
 // Enums
 enum Role {
   ADMIN
-  GEOMETRA
-  SECRETARY
+  OPERATOR
 }
 
 enum PracticeType {

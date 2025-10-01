@@ -31,7 +31,7 @@ export interface RegisterData {
   password: string;
   firstName: string;
   lastName: string;
-  role?: 'ADMIN' | 'GEOMETRA' | 'SECRETARY';
+  role?: 'ADMIN' | 'OPERATOR';
 }
 
 // Client types
