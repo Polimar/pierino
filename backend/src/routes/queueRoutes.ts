@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { queueService } from '../services/queueService';
-import { authMiddleware } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 import { createLogger } from '../utils/logger';
 
 const router = Router();
@@ -34,7 +34,7 @@ const simpleRateLimit = (req: Request, res: Response, next: any) => {
 };
 
 // Applica autenticazione e rate limiting a tutte le routes
-router.use(authMiddleware);
+router.use(authenticateToken);
 router.use(simpleRateLimit);
 
 // GET /api/queues/status - Stato di tutte le code

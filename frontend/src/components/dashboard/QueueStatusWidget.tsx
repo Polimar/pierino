@@ -9,8 +9,7 @@ import {
   Clock, 
   BarChart3,
   Settings,
-  RefreshCw,
-  ExternalLink
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -163,25 +162,25 @@ export const QueueStatusWidget: React.FC<QueueStatusWidgetProps> = ({
     }
   };
 
-  const handleCleanQueue = async (queueName: string) => {
+  const handleResetStats = async (queueName: string) => {
     try {
-      await queueService.cleanQueue(queueName, 'completed');
+      // Azzera tutte le statistiche pulendo completed e failed
+      await Promise.all([
+        queueService.cleanQueue(queueName, 'completed', 0),
+        queueService.cleanQueue(queueName, 'failed', 0)
+      ]);
       toast({
-        title: 'Coda Pulita',
-        description: `Job completati rimossi da ${QUEUE_NAMES[queueName]}`,
+        title: 'Statistiche Azzerate',
+        description: `Statistiche di ${QUEUE_NAMES[queueName]} azzerate`,
       });
       fetchQueuesData();
     } catch (error) {
       toast({
         title: 'Errore',
-        description: 'Errore nella pulizia della coda',
+        description: 'Errore nell\'azzeramento delle statistiche',
         variant: 'destructive',
       });
     }
-  };
-
-  const openBullBoard = () => {
-    window.open('/admin/queues', '_blank');
   };
 
   useEffect(() => {
@@ -280,17 +279,6 @@ export const QueueStatusWidget: React.FC<QueueStatusWidgetProps> = ({
                 <TooltipContent>Aggiorna dati</TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" onClick={openBullBoard}>
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Apri Dashboard Completa</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
 
             <Dialog open={showDetails} onOpenChange={setShowDetails}>
               <DialogTrigger asChild>
@@ -310,7 +298,7 @@ export const QueueStatusWidget: React.FC<QueueStatusWidgetProps> = ({
                   metrics={metrics}
                   onPauseQueue={handlePauseQueue}
                   onResumeQueue={handleResumeQueue}
-                  onCleanQueue={handleCleanQueue}
+                  onResetStats={handleResetStats}
                 />
               </DialogContent>
             </Dialog>
@@ -489,8 +477,8 @@ const QueueDetailsModal: React.FC<{
   metrics: QueueMetrics | null;
   onPauseQueue: (queueName: string) => void;
   onResumeQueue: (queueName: string) => void;
-  onCleanQueue: (queueName: string) => void;
-}> = ({ queuesStatus, metrics, onPauseQueue, onResumeQueue, onCleanQueue }) => {
+  onResetStats: (queueName: string) => void;
+}> = ({ queuesStatus, metrics, onPauseQueue, onResumeQueue, onResetStats }) => {
   return (
     <div className="space-y-4">
       {/* Statistiche globali */}
@@ -531,27 +519,50 @@ const QueueDetailsModal: React.FC<{
                   
                   {!isError && (
                     <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onPauseQueue(queueName)}
-                      >
-                        <Pause className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onResumeQueue(queueName)}
-                      >
-                        <Play className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onCleanQueue(queueName)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onPauseQueue(queueName)}
+                            >
+                              <Pause className="w-3 h-3" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Pausa coda</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onResumeQueue(queueName)}
+                            >
+                              <Play className="w-3 h-3" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Riprendi coda</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onResetStats(queueName)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Azzera statistiche</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   )}
                 </div>
