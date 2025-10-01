@@ -70,6 +70,7 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
   const [isRecording, setIsRecording] = useState(false);
   const [currentFieldIndex, setCurrentFieldIndex] = useState(0);
   const [isFlashing, setIsFlashing] = useState(false);
+  const [isRecordingStarted, setIsRecordingStarted] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -110,6 +111,7 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
 
     recognitionRef.current.onstart = () => {
       setIsRecording(true);
+      setIsRecordingStarted(true);
       setError(null);
       startFlashing();
     };
@@ -149,6 +151,14 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
     recognitionRef.current.onend = () => {
       setIsRecording(false);
       stopFlashing();
+      // Se la registrazione si interrompe, riavviala automaticamente
+      if (isRecordingStarted && currentFieldIndex < FIELDS.length) {
+        setTimeout(() => {
+          if (recognitionRef.current) {
+            recognitionRef.current.start();
+          }
+        }, 100);
+      }
     };
 
     return () => {
@@ -194,14 +204,21 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
+    setIsRecordingStarted(false);
     stopFlashing();
   };
 
   const nextField = () => {
     if (currentFieldIndex < FIELDS.length - 1) {
       setCurrentFieldIndex(currentFieldIndex + 1);
-      if (isRecording) {
+      if (isRecordingStarted) {
         startFlashing();
+        // Riavvia la registrazione se si è interrotta
+        if (!isRecording && recognitionRef.current) {
+          setTimeout(() => {
+            recognitionRef.current?.start();
+          }, 100);
+        }
       }
     } else {
       toast.info('Ultimo campo raggiunto');
@@ -211,8 +228,14 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
   const previousField = () => {
     if (currentFieldIndex > 0) {
       setCurrentFieldIndex(currentFieldIndex - 1);
-      if (isRecording) {
+      if (isRecordingStarted) {
         startFlashing();
+        // Riavvia la registrazione se si è interrotta
+        if (!isRecording && recognitionRef.current) {
+          setTimeout(() => {
+            recognitionRef.current?.start();
+          }, 100);
+        }
       }
     } else {
       toast.info('Primo campo raggiunto');
@@ -229,8 +252,21 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
       return;
     }
 
+    // Stop recording before saving
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsRecordingStarted(false);
+    stopFlashing();
+
     onDataExtracted(formData);
     toast.success('Dati estratti! Passaggio al form manuale...');
+  };
+
+  // Check if required fields are completed to enable save button
+  const isSaveEnabled = () => {
+    const requiredFields = FIELDS.filter(field => field.required);
+    return requiredFields.every(field => formData[field.key as keyof FormData]);
   };
 
   const getCurrentField = () => FIELDS[currentFieldIndex];
@@ -272,7 +308,7 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
           {isRecording && (
             <div className="mt-4 flex items-center justify-center space-x-2">
               <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-red-600 font-medium">REGISTRAZIONE ATTIVA</span>
+              <span className="text-sm text-red-600 font-medium">REGISTRAZIONE CONTINUA ATTIVA</span>
             </div>
           )}
         </CardContent>
@@ -386,9 +422,15 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
 
       {/* Action Buttons */}
       <div className="flex justify-center space-x-4">
-        <Button onClick={handleSave} variant="default" size="lg">
+        <Button 
+          onClick={handleSave} 
+          variant="default" 
+          size="lg"
+          disabled={!isSaveEnabled()}
+          className={`${isSaveEnabled() ? 'bg-green-600 hover:bg-green-700 animate-pulse' : 'bg-gray-400'}`}
+        >
           <Save className="h-5 w-5 mr-2" />
-          Salva e Continua
+          {isSaveEnabled() ? 'Salva e Continua' : 'Completa i campi obbligatori'}
         </Button>
         <Button onClick={onSuccess} variant="outline" size="lg">
           <X className="h-5 w-5 mr-2" />
