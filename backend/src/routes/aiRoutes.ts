@@ -262,9 +262,9 @@ RISPOSTA (solo JSON):`;
     ];
 
     const response = await aiService.chatWithConfig(messages, {
-      model: 'mistral:7b',
+      model: 'phi3:mini', // Modello più veloce
       temperature: 0.3, // Bassa temperatura per risposte più precise
-      timeout: 45000
+      timeout: 90000 // Aumento timeout a 90 secondi
     });
 
     // Parse JSON response
