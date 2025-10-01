@@ -7,9 +7,11 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useClientStore } from '@/store/clientStore';
 import { formatDate } from '@/utils/date';
 import { toast } from 'sonner';
+import NewClientModal from '@/components/clients/NewClientModal';
 
 export default function ClientsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showNewClientModal, setShowNewClientModal] = useState(false);
   const { 
     clients, 
     isLoading, 
@@ -53,6 +55,13 @@ export default function ClientsPage() {
     });
   };
 
+  const handleClientCreated = () => {
+    setShowNewClientModal(false);
+    fetchClients({ page: 1, limit: 10 }).catch(() => {
+      toast.error('Errore nel refresh clienti');
+    });
+  };
+
   if (isLoading && clients.length === 0) {
     return (
       <div className="space-y-6">
@@ -80,7 +89,7 @@ export default function ClientsPage() {
             Gestisci i tuoi clienti e le loro informazioni
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setShowNewClientModal(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Nuovo Cliente
         </Button>
@@ -135,7 +144,7 @@ export default function ClientsPage() {
               <h3 className="mt-2 text-sm font-medium text-gray-900">Nessun cliente</h3>
               <p className="mt-1 text-sm text-gray-500">Inizia aggiungendo il tuo primo cliente.</p>
               <div className="mt-6">
-                <Button>
+                <Button onClick={() => setShowNewClientModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Nuovo Cliente
                 </Button>
@@ -275,6 +284,12 @@ export default function ClientsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal Nuovo Cliente */}
+      <NewClientModal 
+        isOpen={showNewClientModal} 
+        onClose={handleClientCreated}
+      />
     </div>
   );
 }

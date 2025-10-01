@@ -43,18 +43,19 @@ export const useClientStore = create<ClientState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      const response = await apiClient.get<PaginatedResponse<Client>['data']>('/clients', {
+      const response = await apiClient.get<any>('/clients', {
         params,
       });
       
       set({
-        clients: response.data.items,
-        pagination: response.data.pagination,
+        clients: response.data.data.clients || [],
+        pagination: response.data.data.pagination || null,
         isLoading: false,
       });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Errore nel caricamento clienti';
       set({
+        clients: [],
         isLoading: false,
         error: errorMessage,
       });
