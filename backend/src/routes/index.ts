@@ -7,6 +7,7 @@ import whatsappRoutes from './whatsappRoutes';
 import aiRoutes from './aiRoutes';
 import emailApiRoutes from './emailApiRoutes';
 import queueRoutes from './queueRoutes';
+import clientRoutes from './clientRoutes';
 
 const router = Router();
 
@@ -25,6 +26,7 @@ router.get('/health', (req, res) => {
 router.use('/auth', authRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/users', usersRoutes);
+router.use('/clients', clientRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/whatsapp', whatsappRoutes);
 router.use('/ai', aiRoutes);

@@ -1,9 +1,13 @@
 import { useState } from 'react';
-import { Mic, PenTool, Bot, X } from 'lucide-react';
+import { Mic, PenTool, Bot, X, User, Phone, MapPin, FileText, ChevronDown, ChevronUp, Building2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 
 interface NewClientModalProps {
   isOpen: boolean;
@@ -158,8 +162,149 @@ export default function NewClientModal({ isOpen, onClose }: NewClientModalProps)
 
 // Componente per l'inserimento manuale
 function ManualClientForm({ onSuccess }: { onSuccess: () => void }) {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    whatsappNumber: '',
+    fiscalCode: '',
+    vatNumber: '',
+    address: '',
+    city: '',
+    province: '',
+    postalCode: '',
+    country: 'IT',
+    birthDate: '',
+    birthPlace: '',
+    notes: '',
+  });
+
+  const [expandedSections, setExpandedSections] = useState({
+    anagrafica: true,
+    contatti: true,
+    residenza: false,
+    fiscale: false,
+    note: false,
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const validateFiscalCode = (cf: string): boolean => {
+    if (!cf) return true; // Opzionale
+    const regex = /^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$/i;
+    return regex.test(cf.toUpperCase());
+  };
+
+  const validateVatNumber = (vat: string): boolean => {
+    if (!vat) return true; // Opzionale
+    const regex = /^[0-9]{11}$/;
+    return regex.test(vat);
+  };
+
+  const validateEmail = (email: string): boolean => {
+    if (!email) return true; // Opzionale
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
+  const validatePhone = (phone: string): boolean => {
+    if (!phone) return true; // Opzionale
+    const regex = /^(\+39)?[\s]?[0-9]{9,10}$/;
+    return regex.test(phone.replace(/\s/g, ''));
+  };
+
+  const validatePostalCode = (cap: string): boolean => {
+    if (!cap) return true; // Opzionale
+    const regex = /^[0-9]{5}$/;
+    return regex.test(cap);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
+
+    // Validazione
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.firstName.trim()) newErrors.firstName = 'Nome obbligatorio';
+    if (!formData.lastName.trim()) newErrors.lastName = 'Cognome obbligatorio';
+    if (formData.email && !validateEmail(formData.email)) newErrors.email = 'Email non valida';
+    if (formData.phone && !validatePhone(formData.phone)) newErrors.phone = 'Telefono non valido (es. +39 123 456 7890)';
+    if (formData.whatsappNumber && !validatePhone(formData.whatsappNumber)) newErrors.whatsappNumber = 'Numero WhatsApp non valido';
+    if (formData.fiscalCode && !validateFiscalCode(formData.fiscalCode)) newErrors.fiscalCode = 'Codice Fiscale non valido';
+    if (formData.vatNumber && !validateVatNumber(formData.vatNumber)) newErrors.vatNumber = 'Partita IVA non valida (11 cifre)';
+    if (formData.postalCode && !validatePostalCode(formData.postalCode)) newErrors.postalCode = 'CAP non valido (5 cifre)';
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error('Correggi gli errori nel form');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const token = localStorage.getItem('accessToken');
+      const payload: any = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+      };
+
+      // Aggiungi campi opzionali solo se valorizzati
+      if (formData.email) payload.email = formData.email.trim();
+      if (formData.phone) payload.phone = formData.phone.trim();
+      if (formData.whatsappNumber) payload.whatsappNumber = formData.whatsappNumber.trim();
+      if (formData.fiscalCode) payload.fiscalCode = formData.fiscalCode.toUpperCase().trim();
+      if (formData.vatNumber) payload.vatNumber = formData.vatNumber.trim();
+      if (formData.address) payload.address = formData.address.trim();
+      if (formData.city) payload.city = formData.city.trim();
+      if (formData.province) payload.province = formData.province.toUpperCase().trim();
+      if (formData.postalCode) payload.postalCode = formData.postalCode.trim();
+      if (formData.country) payload.country = formData.country.trim();
+      if (formData.birthDate) payload.birthDate = new Date(formData.birthDate).toISOString();
+      if (formData.birthPlace) payload.birthPlace = formData.birthPlace.trim();
+      if (formData.notes) payload.notes = formData.notes.trim();
+
+      const response = await fetch('/api/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Cliente creato con successo!');
+        onSuccess();
+      } else {
+        toast.error(data.message || 'Errore nella creazione del cliente');
+      }
+    } catch (error) {
+      console.error('Error creating client:', error);
+      toast.error('Errore nella creazione del cliente');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="text-center mb-6">
         <PenTool className="mx-auto h-12 w-12 text-blue-500 mb-2" />
         <p className="text-gray-600">
@@ -167,82 +312,289 @@ function ManualClientForm({ onSuccess }: { onSuccess: () => void }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-2">Nome *</label>
-          <input
-            type="text"
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Nome del cliente"
-          />
+      {/* Sezione Anagrafica */}
+      <Card>
+        <div
+          className="p-4 cursor-pointer flex items-center justify-between bg-gray-50 hover:bg-gray-100"
+          onClick={() => toggleSection('anagrafica')}
+        >
+          <div className="flex items-center gap-2">
+            <User className="h-5 w-5 text-blue-600" />
+            <h3 className="font-semibold">Anagrafica</h3>
+            <Badge variant="destructive" className="text-xs">Obbligatorio</Badge>
+          </div>
+          {expandedSections.anagrafica ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </div>
+        {expandedSections.anagrafica && (
+          <CardContent className="p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="firstName">Nome *</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => handleChange('firstName', e.target.value)}
+                  placeholder="Mario"
+                  className={errors.firstName ? 'border-red-500' : ''}
+                />
+                {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
+              </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-2">Cognome *</label>
-          <input
-            type="text"
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Cognome del cliente"
-          />
+              <div>
+                <Label htmlFor="lastName">Cognome *</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => handleChange('lastName', e.target.value)}
+                  placeholder="Rossi"
+                  className={errors.lastName ? 'border-red-500' : ''}
+                />
+                {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="birthDate">Data di Nascita</Label>
+                <Input
+                  id="birthDate"
+                  type="date"
+                  value={formData.birthDate}
+                  onChange={(e) => handleChange('birthDate', e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="birthPlace">Luogo di Nascita</Label>
+                <Input
+                  id="birthPlace"
+                  value={formData.birthPlace}
+                  onChange={(e) => handleChange('birthPlace', e.target.value)}
+                  placeholder="Roma (RM)"
+                />
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Sezione Contatti */}
+      <Card>
+        <div
+          className="p-4 cursor-pointer flex items-center justify-between bg-gray-50 hover:bg-gray-100"
+          onClick={() => toggleSection('contatti')}
+        >
+          <div className="flex items-center gap-2">
+            <Phone className="h-5 w-5 text-green-600" />
+            <h3 className="font-semibold">Contatti</h3>
+          </div>
+          {expandedSections.contatti ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </div>
+        {expandedSections.contatti && (
+          <CardContent className="p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange('email', e.target.value)}
+                  placeholder="mario.rossi@email.it"
+                  className={errors.email ? 'border-red-500' : ''}
+                />
+                {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+              </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-2">Email</label>
-          <input
-            type="email"
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="email@esempio.com"
-          />
+              <div>
+                <Label htmlFor="phone">Telefono</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleChange('phone', e.target.value)}
+                  placeholder="+39 123 456 7890"
+                  className={errors.phone ? 'border-red-500' : ''}
+                />
+                {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
+              </div>
+
+              <div className="md:col-span-2">
+                <Label htmlFor="whatsappNumber">Numero WhatsApp</Label>
+                <Input
+                  id="whatsappNumber"
+                  type="tel"
+                  value={formData.whatsappNumber}
+                  onChange={(e) => handleChange('whatsappNumber', e.target.value)}
+                  placeholder="+39 123 456 7890"
+                  className={errors.whatsappNumber ? 'border-red-500' : ''}
+                />
+                {errors.whatsappNumber && <p className="text-xs text-red-500 mt-1">{errors.whatsappNumber}</p>}
+                <p className="text-xs text-gray-500 mt-1">Se uguale al telefono, lascia vuoto</p>
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Sezione Dati Fiscali */}
+      <Card>
+        <div
+          className="p-4 cursor-pointer flex items-center justify-between bg-gray-50 hover:bg-gray-100"
+          onClick={() => toggleSection('fiscale')}
+        >
+          <div className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-purple-600" />
+            <h3 className="font-semibold">Dati Fiscali</h3>
+          </div>
+          {expandedSections.fiscale ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </div>
+        {expandedSections.fiscale && (
+          <CardContent className="p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="fiscalCode">Codice Fiscale</Label>
+                <Input
+                  id="fiscalCode"
+                  value={formData.fiscalCode}
+                  onChange={(e) => handleChange('fiscalCode', e.target.value.toUpperCase())}
+                  placeholder="RSSMRA80A01H501Z"
+                  maxLength={16}
+                  className={errors.fiscalCode ? 'border-red-500' : ''}
+                />
+                {errors.fiscalCode && <p className="text-xs text-red-500 mt-1">{errors.fiscalCode}</p>}
+                <p className="text-xs text-gray-500 mt-1">16 caratteri alfanumerici</p>
+              </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-2">Telefono</label>
-          <input
-            type="tel"
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="+39 123 456 7890"
-          />
+              <div>
+                <Label htmlFor="vatNumber">Partita IVA</Label>
+                <Input
+                  id="vatNumber"
+                  value={formData.vatNumber}
+                  onChange={(e) => handleChange('vatNumber', e.target.value)}
+                  placeholder="12345678901"
+                  maxLength={11}
+                  className={errors.vatNumber ? 'border-red-500' : ''}
+                />
+                {errors.vatNumber && <p className="text-xs text-red-500 mt-1">{errors.vatNumber}</p>}
+                <p className="text-xs text-gray-500 mt-1">11 cifre (per aziende)</p>
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Sezione Residenza */}
+      <Card>
+        <div
+          className="p-4 cursor-pointer flex items-center justify-between bg-gray-50 hover:bg-gray-100"
+          onClick={() => toggleSection('residenza')}
+        >
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-orange-600" />
+            <h3 className="font-semibold">Residenza</h3>
+          </div>
+          {expandedSections.residenza ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </div>
+        {expandedSections.residenza && (
+          <CardContent className="p-4 space-y-4">
+            <div>
+              <Label htmlFor="address">Indirizzo</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) => handleChange('address', e.target.value)}
+                placeholder="Via Roma, 123"
+              />
+            </div>
 
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium mb-2">Indirizzo</label>
-          <input
-            type="text"
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Via, numero civico, città"
-          />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="city">Città</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => handleChange('city', e.target.value)}
+                  placeholder="Milano"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="province">Provincia</Label>
+                <Input
+                  id="province"
+                  value={formData.province}
+                  onChange={(e) => handleChange('province', e.target.value.toUpperCase())}
+                  placeholder="MI"
+                  maxLength={2}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="postalCode">CAP</Label>
+                <Input
+                  id="postalCode"
+                  value={formData.postalCode}
+                  onChange={(e) => handleChange('postalCode', e.target.value)}
+                  placeholder="20100"
+                  maxLength={5}
+                  className={errors.postalCode ? 'border-red-500' : ''}
+                />
+                {errors.postalCode && <p className="text-xs text-red-500 mt-1">{errors.postalCode}</p>}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="country">Paese</Label>
+              <Input
+                id="country"
+                value={formData.country}
+                onChange={(e) => handleChange('country', e.target.value.toUpperCase())}
+                placeholder="IT"
+                maxLength={2}
+              />
+              <p className="text-xs text-gray-500 mt-1">Codice ISO (IT, FR, DE, ecc.)</p>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Sezione Note */}
+      <Card>
+        <div
+          className="p-4 cursor-pointer flex items-center justify-between bg-gray-50 hover:bg-gray-100"
+          onClick={() => toggleSection('note')}
+        >
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-gray-600" />
+            <h3 className="font-semibold">Note</h3>
+          </div>
+          {expandedSections.note ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </div>
+        {expandedSections.note && (
+          <CardContent className="p-4">
+            <Label htmlFor="notes">Note aggiuntive</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => handleChange('notes', e.target.value)}
+              placeholder="Informazioni utili, preferenze del cliente, note operative..."
+              rows={4}
+            />
+          </CardContent>
+        )}
+      </Card>
 
-        <div>
-          <label className="block text-sm font-medium mb-2">Città</label>
-          <input
-            type="text"
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Città"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">CAP</label>
-          <input
-            type="text"
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="00000"
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-end space-x-4 pt-6">
-        <Button variant="outline" onClick={onSuccess}>
+      <div className="flex justify-end space-x-4 pt-6 border-t">
+        <Button type="button" variant="outline" onClick={onSuccess} disabled={isSubmitting}>
           Annulla
         </Button>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          Salva Cliente
+        <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+          {isSubmitting ? 'Creazione...' : 'Salva Cliente'}
         </Button>
       </div>
-    </div>
+    </form>
   );
 }
+
 
 
 
