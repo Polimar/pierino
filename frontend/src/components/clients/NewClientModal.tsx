@@ -12,10 +12,28 @@ import { toast } from 'sonner';
 interface NewClientModalProps {
   isOpen: boolean;
   onClose: () => void;
+  editClient?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phone?: string;
+    whatsappNumber?: string;
+    fiscalCode?: string;
+    vatNumber?: string;
+    address?: string;
+    city?: string;
+    province?: string;
+    postalCode?: string;
+    country?: string;
+    birthDate?: string;
+    birthPlace?: string;
+    notes?: string;
+  };
 }
 
-export default function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
-  const [selectedMode, setSelectedMode] = useState<string | null>(null);
+export default function NewClientModal({ isOpen, onClose, editClient }: NewClientModalProps) {
+  const [selectedMode, setSelectedMode] = useState<string | null>(editClient ? 'manual' : null);
 
   const modes = [
     {
@@ -59,7 +77,7 @@ export default function NewClientModal({ isOpen, onClose }: NewClientModalProps)
         return <ManualClientForm onSuccess={() => {
           setSelectedMode(null);
           onClose();
-        }} />;
+        }} editData={editClient} />;
 
       case 'voice':
         return (
@@ -99,11 +117,11 @@ export default function NewClientModal({ isOpen, onClose }: NewClientModalProps)
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">
-            {selectedMode ? 'Nuovo Cliente' : 'Scegli Modalità di Inserimento'}
+            {editClient ? 'Modifica Cliente' : (selectedMode ? 'Nuovo Cliente' : 'Scegli Modalità di Inserimento')}
           </DialogTitle>
         </DialogHeader>
 
-        {!selectedMode ? (
+        {!selectedMode && !editClient ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
             {modes.map((mode) => {
               const Icon = mode.icon;
@@ -161,23 +179,43 @@ export default function NewClientModal({ isOpen, onClose }: NewClientModalProps)
 }
 
 // Componente per l'inserimento manuale
-function ManualClientForm({ onSuccess }: { onSuccess: () => void }) {
+function ManualClientForm({ onSuccess, editData }: { 
+  onSuccess: () => void;
+  editData?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phone?: string;
+    whatsappNumber?: string;
+    fiscalCode?: string;
+    vatNumber?: string;
+    address?: string;
+    city?: string;
+    province?: string;
+    postalCode?: string;
+    country?: string;
+    birthDate?: string;
+    birthPlace?: string;
+    notes?: string;
+  };
+}) {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    whatsappNumber: '',
-    fiscalCode: '',
-    vatNumber: '',
-    address: '',
-    city: '',
-    province: '',
-    postalCode: '',
-    country: 'IT',
-    birthDate: '',
-    birthPlace: '',
-    notes: '',
+    firstName: editData?.firstName || '',
+    lastName: editData?.lastName || '',
+    email: editData?.email || '',
+    phone: editData?.phone || '',
+    whatsappNumber: editData?.whatsappNumber || '',
+    fiscalCode: editData?.fiscalCode || '',
+    vatNumber: editData?.vatNumber || '',
+    address: editData?.address || '',
+    city: editData?.city || '',
+    province: editData?.province || '',
+    postalCode: editData?.postalCode || '',
+    country: editData?.country || 'IT',
+    birthDate: editData?.birthDate ? editData.birthDate.split('T')[0] : '',
+    birthPlace: editData?.birthPlace || '',
+    notes: editData?.notes || '',
   });
 
   const [expandedSections, setExpandedSections] = useState({
@@ -271,8 +309,11 @@ function ManualClientForm({ onSuccess }: { onSuccess: () => void }) {
       if (formData.birthPlace) payload.birthPlace = formData.birthPlace.trim();
       if (formData.notes) payload.notes = formData.notes.trim();
 
-      const response = await fetch('/api/clients', {
-        method: 'POST',
+      const url = editData ? `/api/clients/${editData.id}` : '/api/clients';
+      const method = editData ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -283,14 +324,14 @@ function ManualClientForm({ onSuccess }: { onSuccess: () => void }) {
       const data = await response.json();
 
       if (data.success) {
-        toast.success('Cliente creato con successo!');
+        toast.success(editData ? 'Cliente aggiornato con successo!' : 'Cliente creato con successo!');
         onSuccess();
       } else {
-        toast.error(data.message || 'Errore nella creazione del cliente');
+        toast.error(data.message || `Errore nell${editData ? 'aggiornamento' : 'a creazione'} del cliente`);
       }
     } catch (error) {
-      console.error('Error creating client:', error);
-      toast.error('Errore nella creazione del cliente');
+      console.error('Error saving client:', error);
+      toast.error(`Errore nell${editData ? 'aggiornamento' : 'a creazione'} del cliente`);
     } finally {
       setIsSubmitting(false);
     }
@@ -308,7 +349,7 @@ function ManualClientForm({ onSuccess }: { onSuccess: () => void }) {
       <div className="text-center mb-6">
         <PenTool className="mx-auto h-12 w-12 text-blue-500 mb-2" />
         <p className="text-gray-600">
-          Inserisci manualmente i dati del nuovo cliente
+          {editData ? 'Modifica i dati del cliente' : 'Inserisci manualmente i dati del nuovo cliente'}
         </p>
       </div>
 
@@ -588,7 +629,7 @@ function ManualClientForm({ onSuccess }: { onSuccess: () => void }) {
           Annulla
         </Button>
         <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
-          {isSubmitting ? 'Creazione...' : 'Salva Cliente'}
+          {isSubmitting ? (editData ? 'Aggiornamento...' : 'Creazione...') : (editData ? 'Aggiorna Cliente' : 'Salva Cliente')}
         </Button>
       </div>
     </form>

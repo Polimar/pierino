@@ -359,22 +359,33 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
-      {/* Modal Modifica (TODO: implementare form di modifica) */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowEditModal(false)}>
-          <div className="bg-white rounded-lg p-6 max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-4">Modifica Cliente</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              La funzione di modifica cliente sarà implementata nel prossimo aggiornamento.
-              Per ora puoi visualizzare tutti i dettagli del cliente.
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button onClick={() => setShowEditModal(false)}>
-                OK
-              </Button>
-            </div>
-          </div>
-        </div>
+      {/* Modal Modifica */}
+      {client && (
+        <NewClientModal 
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            if (id) getClient(id);
+          }}
+          editClient={{
+            id: client.id,
+            firstName: client.firstName,
+            lastName: client.lastName,
+            email: client.email,
+            phone: client.phone,
+            whatsappNumber: client.whatsappNumber,
+            fiscalCode: client.fiscalCode,
+            vatNumber: client.vatNumber,
+            address: client.address,
+            city: client.city,
+            province: client.province,
+            postalCode: client.postalCode,
+            country: client.country,
+            birthDate: client.birthDate,
+            birthPlace: client.birthPlace,
+            notes: client.notes,
+          }}
+        />
       )}
     </div>
   );
