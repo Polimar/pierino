@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Mic, PenTool, Bot, X, User, Phone, MapPin, FileText, ChevronDown, ChevronUp, Building2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -30,6 +30,7 @@ interface NewClientModalProps {
     birthDate?: string;
     birthPlace?: string;
     notes?: string;
+    _validationErrors?: Record<string, string>;
   };
 }
 
@@ -182,7 +183,7 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
 }
 
 // Componente per l'inserimento manuale
-function ManualClientForm({ onSuccess, editData }: { 
+function ManualClientForm({ onSuccess, editData }: {
   onSuccess: () => void;
   editData?: {
     id: string;
@@ -201,6 +202,7 @@ function ManualClientForm({ onSuccess, editData }: {
     birthDate?: string;
     birthPlace?: string;
     notes?: string;
+    _validationErrors?: Record<string, string>;
   };
 }) {
   const [formData, setFormData] = useState({
@@ -231,6 +233,39 @@ function ManualClientForm({ onSuccess, editData }: {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Initialize errors from validation errors passed from voice form
+  useEffect(() => {
+    if (editData?._validationErrors) {
+      setErrors(editData._validationErrors);
+      
+      // Auto-expand sections that have errors
+      const sectionsWithErrors = new Set<string>();
+      Object.keys(editData._validationErrors).forEach(field => {
+        if (['firstName', 'lastName', 'birthDate', 'birthPlace'].includes(field)) {
+          sectionsWithErrors.add('anagrafica');
+        } else if (['email', 'phone', 'whatsappNumber'].includes(field)) {
+          sectionsWithErrors.add('contatti');
+        } else if (['address', 'city', 'province', 'postalCode', 'country'].includes(field)) {
+          sectionsWithErrors.add('residenza');
+        } else if (['fiscalCode', 'vatNumber'].includes(field)) {
+          sectionsWithErrors.add('fiscale');
+        } else if (['notes'].includes(field)) {
+          sectionsWithErrors.add('note');
+        }
+      });
+      
+      if (sectionsWithErrors.size > 0) {
+        setExpandedSections(prev => {
+          const newSections = { ...prev };
+          sectionsWithErrors.forEach(section => {
+            newSections[section as keyof typeof prev] = true;
+          });
+          return newSections;
+        });
+      }
+    }
+  }, [editData?._validationErrors]);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -330,7 +365,13 @@ function ManualClientForm({ onSuccess, editData }: {
         toast.success(editData ? 'Cliente aggiornato con successo!' : 'Cliente creato con successo!');
         onSuccess();
       } else {
-        toast.error(data.message || `Errore nell${editData ? 'aggiornamento' : 'a creazione'} del cliente`);
+        // Handle validation errors
+        if (data.errors) {
+          setErrors(data.errors);
+          toast.warning('Correggi gli errori evidenziati nei campi');
+        } else {
+          toast.error(data.message || `Errore nell${editData ? 'aggiornamento' : 'a creazione'} del cliente`);
+        }
       }
     } catch (error) {
       console.error('Error saving client:', error);
@@ -540,15 +581,17 @@ function ManualClientForm({ onSuccess, editData }: {
         </div>
         {expandedSections.residenza && (
           <CardContent className="p-4 space-y-4">
-            <div>
-              <Label htmlFor="address">Indirizzo</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => handleChange('address', e.target.value)}
-                placeholder="Via Roma, 123"
-              />
-            </div>
+              <div>
+                <Label htmlFor="address">Indirizzo</Label>
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => handleChange('address', e.target.value)}
+                  placeholder="Via Roma, 123"
+                  className={errors.address ? 'border-red-500' : ''}
+                />
+                {errors.address && <p className="text-xs text-red-500 mt-1">{errors.address}</p>}
+              </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -558,7 +601,9 @@ function ManualClientForm({ onSuccess, editData }: {
                   value={formData.city}
                   onChange={(e) => handleChange('city', e.target.value)}
                   placeholder="Milano"
+                  className={errors.city ? 'border-red-500' : ''}
                 />
+                {errors.city && <p className="text-xs text-red-500 mt-1">{errors.city}</p>}
               </div>
 
               <div>
@@ -569,7 +614,9 @@ function ManualClientForm({ onSuccess, editData }: {
                   onChange={(e) => handleChange('province', e.target.value.toUpperCase())}
                   placeholder="MI"
                   maxLength={2}
+                  className={errors.province ? 'border-red-500' : ''}
                 />
+                {errors.province && <p className="text-xs text-red-500 mt-1">{errors.province}</p>}
               </div>
 
               <div>
@@ -594,7 +641,9 @@ function ManualClientForm({ onSuccess, editData }: {
                 onChange={(e) => handleChange('country', e.target.value.toUpperCase())}
                 placeholder="IT"
                 maxLength={2}
+                className={errors.country ? 'border-red-500' : ''}
               />
+              {errors.country && <p className="text-xs text-red-500 mt-1">{errors.country}</p>}
               <p className="text-xs text-gray-500 mt-1">Codice ISO (IT, FR, DE, ecc.)</p>
             </div>
           </CardContent>
@@ -622,7 +671,9 @@ function ManualClientForm({ onSuccess, editData }: {
               onChange={(e) => handleChange('notes', e.target.value)}
               placeholder="Informazioni utili, preferenze del cliente, note operative..."
               rows={4}
+              className={errors.notes ? 'border-red-500' : ''}
             />
+            {errors.notes && <p className="text-xs text-red-500 mt-1">{errors.notes}</p>}
           </CardContent>
         )}
       </Card>

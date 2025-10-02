@@ -134,9 +134,21 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
       // Update current field with the transcript
       if (finalTranscript) {
         const currentField = FIELDS[currentFieldIndex];
+        let processedText = finalTranscript.trim();
+        
+        // Special processing for email field
+        if (currentField.key === 'email') {
+          // Remove spaces and convert "punto" to "."
+          processedText = processedText
+            .replace(/\s+/g, '') // Remove all spaces
+            .replace(/punto/gi, '.') // Convert "punto" to "."
+            .replace(/chiocciola/gi, '@') // Convert "chiocciola" to "@"
+            .replace(/at/gi, '@'); // Convert "at" to "@"
+        }
+        
         setFormData(prev => ({
           ...prev,
-          [currentField.key]: finalTranscript.trim()
+          [currentField.key]: processedText
         }));
       }
     };
@@ -213,12 +225,7 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
       setCurrentFieldIndex(currentFieldIndex + 1);
       if (isRecordingStarted) {
         startFlashing();
-        // Riavvia la registrazione se si è interrotta
-        if (!isRecording && recognitionRef.current) {
-          setTimeout(() => {
-            recognitionRef.current?.start();
-          }, 100);
-        }
+        // La registrazione continua automaticamente, non serve riavviarla
       }
     } else {
       toast.info('Ultimo campo raggiunto');
@@ -230,28 +237,14 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
       setCurrentFieldIndex(currentFieldIndex - 1);
       if (isRecordingStarted) {
         startFlashing();
-        // Riavvia la registrazione se si è interrotta
-        if (!isRecording && recognitionRef.current) {
-          setTimeout(() => {
-            recognitionRef.current?.start();
-          }, 100);
-        }
+        // La registrazione continua automaticamente, non serve riavviarla
       }
     } else {
       toast.info('Primo campo raggiunto');
     }
   };
 
-  const handleSave = () => {
-    // Check required fields
-    const requiredFields = FIELDS.filter(field => field.required);
-    const missingFields = requiredFields.filter(field => !formData[field.key as keyof FormData]);
-    
-    if (missingFields.length > 0) {
-      toast.error(`Campi obbligatori mancanti: ${missingFields.map(f => f.label).join(', ')}`);
-      return;
-    }
-
+  const handleSave = async () => {
     // Stop recording before saving
     if (recognitionRef.current) {
       recognitionRef.current.stop();
@@ -259,8 +252,40 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
     setIsRecordingStarted(false);
     stopFlashing();
 
-    onDataExtracted(formData);
-    toast.success('Dati estratti! Passaggio al form manuale...');
+    try {
+      // Try to create the client directly
+      const response = await fetch('/api/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success('Cliente creato con successo!');
+        onSuccess(); // Close modal
+      } else {
+        const errorData = await response.json();
+        
+        // If there are validation errors, pass data to manual form for correction
+        if (errorData.errors) {
+          toast.warning('Errori di validazione rilevati. Passaggio al form di correzione...');
+          onDataExtracted({
+            ...formData,
+            _validationErrors: errorData.errors // Pass validation errors
+          });
+        } else {
+          toast.error(errorData.message || 'Errore durante la creazione del cliente');
+        }
+      }
+    } catch (error) {
+      console.error('Error creating client:', error);
+      toast.error('Errore di connessione. Passaggio al form manuale...');
+      onDataExtracted(formData);
+    }
   };
 
   // Check if required fields are completed to enable save button
