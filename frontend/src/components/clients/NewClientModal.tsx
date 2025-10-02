@@ -368,7 +368,7 @@ function ManualClientForm({ onSuccess, editData }: {
         // Handle validation errors
         if (data.errors) {
           // Convert array of error messages to field-specific errors
-          const fieldErrors: Record<string, string> = {};
+          let fieldErrors: Record<string, string> = {};
           if (Array.isArray(data.errors)) {
             data.errors.forEach((error: string) => {
               // Try to map error messages to field names
