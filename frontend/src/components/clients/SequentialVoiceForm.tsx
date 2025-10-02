@@ -272,171 +272,157 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
   const getCurrentField = () => FIELDS[currentFieldIndex];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="text-center">
-        <div className="flex items-center justify-center mb-4">
-          <Mic className="h-8 w-8 text-green-500 mr-2" />
-          <h3 className="text-xl font-semibold">Inserimento Vocale Sequenziale</h3>
+        <div className="flex items-center justify-center mb-2">
+          <Mic className="h-6 w-6 text-green-500 mr-2" />
+          <h3 className="text-lg font-semibold">Inserimento Vocale Sequenziale</h3>
         </div>
-        <p className="text-gray-600">
-          I campi lampeggeranno in sequenza. Parla quando il campo è attivo.
+        <p className="text-sm text-gray-600">
+          I campi si compilano mentre parli. Usa i bottoni per navigare.
         </p>
       </div>
 
       {/* Current Field Display */}
       <Card className={`${isFlashing && isRecording ? 'animate-pulse bg-yellow-50 border-yellow-300' : 'bg-gray-50'}`}>
-        <CardContent className="p-6 text-center">
-          <div className="mb-4">
-            <h4 className="text-lg font-semibold mb-2">
+        <CardContent className="p-4 text-center">
+          <div className="mb-3">
+            <h4 className="text-base font-semibold mb-1">
               Campo Attuale: {getCurrentField().label}
               {getCurrentField().required && <span className="text-red-500 ml-1">*</span>}
             </h4>
-            <p className="text-sm text-gray-600">
+            <p className="text-xs text-gray-600">
               {currentFieldIndex + 1} di {FIELDS.length}
             </p>
           </div>
 
           {/* Field Value Display */}
-          <div className="bg-white p-4 rounded-lg border-2 border-dashed border-gray-300 min-h-[60px] flex items-center justify-center">
-            <span className={`text-lg font-medium ${formData[getCurrentField().key as keyof FormData] ? 'text-green-600' : 'text-gray-400'}`}>
+          <div className="bg-white p-3 rounded-lg border-2 border-dashed border-gray-300 min-h-[50px] flex items-center justify-center">
+            <span className={`text-base font-medium ${formData[getCurrentField().key as keyof FormData] ? 'text-green-600' : 'text-gray-400'}`}>
               {formData[getCurrentField().key as keyof FormData] || 'Parla per riempire questo campo...'}
             </span>
           </div>
 
           {/* Recording Status */}
           {isRecording && (
-            <div className="mt-4 flex items-center justify-center space-x-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-red-600 font-medium">REGISTRAZIONE CONTINUA ATTIVA</span>
+            <div className="mt-2 flex items-center justify-center space-x-2">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-red-600 font-medium">REGISTRAZIONE ATTIVA</span>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Recording Controls */}
+      {/* Progress - Solo campi compilati */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center space-x-4 mb-4">
-            <Button
-              onClick={isRecording ? stopRecording : startRecording}
-              variant={isRecording ? "destructive" : "default"}
-              size="lg"
-              className={`${isRecording ? 'animate-pulse' : ''}`}
-            >
-              {isRecording ? <MicOff className="h-5 w-5 mr-2" /> : <Mic className="h-5 w-5 mr-2" />}
-              {isRecording ? 'Ferma Registrazione' : 'Inizia Registrazione'}
-            </Button>
-            
-            {isRecording && (
-              <Badge variant="destructive" className="animate-pulse">
-                REC
-              </Badge>
-            )}
+        <CardContent className="p-3">
+          <h4 className="font-semibold mb-2 text-sm">Progresso Campi</h4>
+          <div className="grid grid-cols-2 gap-1 text-xs">
+            {FIELDS.map((field, index) => {
+              const hasValue = formData[field.key as keyof FormData];
+              if (!hasValue && index > currentFieldIndex) return null; // Non mostrare campi futuri vuoti
+              
+              return (
+                <div key={field.key} className="flex items-center space-x-1">
+                  <div className={`w-2 h-2 rounded-full ${
+                    index < currentFieldIndex ? 'bg-green-500' :
+                    index === currentFieldIndex ? 'bg-yellow-500 animate-pulse' :
+                    hasValue ? 'bg-blue-500' : 'bg-gray-300'
+                  }`}></div>
+                  <span className={`text-xs ${
+                    index < currentFieldIndex ? 'text-green-600' :
+                    index === currentFieldIndex ? 'text-yellow-600 font-medium' :
+                    hasValue ? 'text-blue-600' : 'text-gray-500'
+                  }`}>
+                    {field.label}
+                    {field.required && <span className="text-red-500 ml-1">*</span>}
+                  </span>
+                </div>
+              );
+            })}
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Navigation Controls */}
-          <div className="flex justify-center space-x-4 mb-4">
-            <Button
-              onClick={previousField}
-              variant="outline"
-              disabled={currentFieldIndex === 0}
-            >
-              <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
-              Precedente
-            </Button>
-            
-            <Button
-              onClick={nextField}
-              variant="outline"
-              disabled={currentFieldIndex === FIELDS.length - 1}
-            >
-              Avanti
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
+      {/* Controls - Tutti i bottoni vicini */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col space-y-3">
+            {/* Recording Button */}
+            <div className="flex justify-center">
+              <Button
+                onClick={isRecording ? stopRecording : startRecording}
+                variant={isRecording ? "destructive" : "default"}
+                size="lg"
+                className={`${isRecording ? 'animate-pulse' : ''}`}
+              >
+                {isRecording ? <MicOff className="h-4 w-4 mr-2" /> : <Mic className="h-4 w-4 mr-2" />}
+                {isRecording ? 'Ferma Registrazione' : 'Inizia Registrazione'}
+              </Button>
+            </div>
+
+            {/* Navigation Controls */}
+            <div className="flex justify-center space-x-3">
+              <Button
+                onClick={previousField}
+                variant="outline"
+                size="sm"
+                disabled={currentFieldIndex === 0}
+              >
+                <ArrowRight className="h-3 w-3 mr-1 rotate-180" />
+                Precedente
+              </Button>
+              
+              <Button
+                onClick={nextField}
+                variant="outline"
+                size="sm"
+                disabled={currentFieldIndex === FIELDS.length - 1}
+              >
+                Avanti
+                <ArrowRight className="h-3 w-3 ml-1" />
+              </Button>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-center space-x-3">
+              <Button 
+                onClick={handleSave} 
+                variant="default" 
+                size="lg"
+                disabled={!isSaveEnabled()}
+                className={`${isSaveEnabled() ? 'bg-green-600 hover:bg-green-700 animate-pulse' : 'bg-gray-400'}`}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {isSaveEnabled() ? 'Salva e Continua' : 'Completa i campi obbligatori'}
+              </Button>
+              <Button onClick={onSuccess} variant="outline" size="lg">
+                <X className="h-4 w-4 mr-2" />
+                Annulla
+              </Button>
+            </div>
           </div>
 
           {/* Error Display */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
               <div className="flex items-center">
-                <X className="h-5 w-5 text-red-500 mr-2" />
-                <p className="text-red-700">{error}</p>
+                <X className="h-4 w-4 text-red-500 mr-2" />
+                <p className="text-red-700 text-sm">{error}</p>
               </div>
             </div>
           )}
 
           {/* Transcript Display */}
           {transcript && (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-semibold mb-2">Ultima Trascrizione:</h4>
-              <p className="text-sm">{transcript}</p>
+            <div className="mt-3 bg-gray-50 p-3 rounded-lg">
+              <h4 className="font-semibold mb-1 text-sm">Ultima Trascrizione:</h4>
+              <p className="text-xs">{transcript}</p>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Progress and Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Progress */}
-        <Card>
-          <CardContent className="p-4">
-            <h4 className="font-semibold mb-3">Progresso</h4>
-            <div className="space-y-2">
-              {FIELDS.map((field, index) => (
-                <div key={field.key} className="flex items-center space-x-2">
-                  <div className={`w-4 h-4 rounded-full ${
-                    index < currentFieldIndex ? 'bg-green-500' :
-                    index === currentFieldIndex ? 'bg-yellow-500 animate-pulse' :
-                    'bg-gray-300'
-                  }`}></div>
-                  <span className={`text-sm ${
-                    index < currentFieldIndex ? 'text-green-600' :
-                    index === currentFieldIndex ? 'text-yellow-600 font-medium' :
-                    'text-gray-500'
-                  }`}>
-                    {field.label}
-                    {field.required && <span className="text-red-500 ml-1">*</span>}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Data Summary */}
-        <Card>
-          <CardContent className="p-4">
-            <h4 className="font-semibold mb-3">Riepilogo Dati</h4>
-            <div className="space-y-2 text-sm">
-              <div><strong>Nome:</strong> {formData.firstName || 'Non inserito'}</div>
-              <div><strong>Cognome:</strong> {formData.lastName || 'Non inserito'}</div>
-              <div><strong>Email:</strong> {formData.email || 'Non inserito'}</div>
-              <div><strong>Telefono:</strong> {formData.phone || 'Non inserito'}</div>
-              <div><strong>Codice Fiscale:</strong> {formData.fiscalCode || 'Non inserito'}</div>
-              <div><strong>Indirizzo:</strong> {formData.address || 'Non inserito'}</div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex justify-center space-x-4">
-        <Button 
-          onClick={handleSave} 
-          variant="default" 
-          size="lg"
-          disabled={!isSaveEnabled()}
-          className={`${isSaveEnabled() ? 'bg-green-600 hover:bg-green-700 animate-pulse' : 'bg-gray-400'}`}
-        >
-          <Save className="h-5 w-5 mr-2" />
-          {isSaveEnabled() ? 'Salva e Continua' : 'Completa i campi obbligatori'}
-        </Button>
-        <Button onClick={onSuccess} variant="outline" size="lg">
-          <X className="h-5 w-5 mr-2" />
-          Annulla
-        </Button>
-      </div>
     </div>
   );
 }
