@@ -83,7 +83,7 @@ export default function CompactVoiceForm({ onSuccess, onDataExtracted }: Compact
     city: '',
     province: '',
     postalCode: '',
-    country: 'Italia',
+    country: 'IT',
     birthDate: '',
     birthPlace: '',
     notes: ''
@@ -299,10 +299,10 @@ export default function CompactVoiceForm({ onSuccess, onDataExtracted }: Compact
           <Card className="h-full">
             <CardContent className="p-4">
               <h4 className="font-semibold mb-3 text-sm">Campi Cliente</h4>
-              <div className="space-y-3">
+              <div className="space-y-1">
                 {FIELDS.map((field, index) => (
-                  <div key={field.key} className="space-y-1">
-                    <Label htmlFor={field.key} className="text-xs font-medium">
+                  <div key={field.key} className="flex items-center gap-2 py-1">
+                    <Label htmlFor={field.key} className="text-xs font-medium w-20 flex-shrink-0">
                       {field.label}
                       {field.required && <span className="text-red-500 ml-1">*</span>}
                     </Label>
@@ -312,10 +312,10 @@ export default function CompactVoiceForm({ onSuccess, onDataExtracted }: Compact
                         value={formData[field.key as keyof FormData]}
                         onChange={(e) => handleFieldChange(field.key, e.target.value)}
                         placeholder={`Inserisci ${field.label.toLowerCase()}`}
-                        className={`w-full p-2 text-sm border rounded-md resize-none ${
+                        className={`flex-1 p-1 text-sm border rounded-md resize-none ${
                           index === currentFieldIndex ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
                         }`}
-                        rows={2}
+                        rows={1}
                       />
                     ) : (
                       <Input
@@ -324,7 +324,7 @@ export default function CompactVoiceForm({ onSuccess, onDataExtracted }: Compact
                         value={formData[field.key as keyof FormData]}
                         onChange={(e) => handleFieldChange(field.key, e.target.value)}
                         placeholder={`Inserisci ${field.label.toLowerCase()}`}
-                        className={`text-sm ${
+                        className={`flex-1 text-sm ${
                           index === currentFieldIndex ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
                         }`}
                       />
@@ -470,13 +470,6 @@ export default function CompactVoiceForm({ onSuccess, onDataExtracted }: Compact
         </div>
       )}
 
-      {/* Transcript Display */}
-      {transcript && (
-        <div className="mt-3 bg-gray-50 p-3 rounded-lg">
-          <h4 className="font-semibold mb-1 text-sm">Ultima Trascrizione:</h4>
-          <p className="text-xs">{transcript}</p>
-        </div>
-      )}
     </div>
   );
 }

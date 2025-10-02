@@ -347,8 +347,8 @@ function ManualClientForm({ onSuccess, editData }: {
       if (formData.birthPlace) payload.birthPlace = formData.birthPlace.trim();
       if (formData.notes) payload.notes = formData.notes.trim();
 
-      const url = editData ? `/api/clients/${editData.id}` : '/api/clients';
-      const method = editData ? 'PUT' : 'POST';
+      const url = editData?.id ? `/api/clients/${editData.id}` : '/api/clients';
+      const method = editData?.id ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
         method,
@@ -362,7 +362,7 @@ function ManualClientForm({ onSuccess, editData }: {
       const data = await response.json();
 
       if (data.success) {
-        toast.success(editData ? 'Cliente aggiornato con successo!' : 'Cliente creato con successo!');
+        toast.success(editData?.id ? 'Cliente aggiornato con successo!' : 'Cliente creato con successo!');
         onSuccess();
       } else {
         // Handle validation errors
@@ -393,12 +393,12 @@ function ManualClientForm({ onSuccess, editData }: {
           setErrors(fieldErrors);
           toast.warning('Correggi gli errori evidenziati nei campi');
         } else {
-          toast.error(data.message || `Errore nell${editData ? 'aggiornamento' : 'a creazione'} del cliente`);
+          toast.error(data.message || `Errore nell${editData?.id ? 'aggiornamento' : 'a creazione'} del cliente`);
         }
       }
     } catch (error) {
       console.error('Error saving client:', error);
-      toast.error(`Errore nell${editData ? 'aggiornamento' : 'a creazione'} del cliente`);
+      toast.error(`Errore nell${editData?.id ? 'aggiornamento' : 'a creazione'} del cliente`);
     } finally {
       setIsSubmitting(false);
     }
@@ -716,7 +716,7 @@ function ManualClientForm({ onSuccess, editData }: {
           Annulla
         </Button>
         <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
-          {isSubmitting ? (editData ? 'Aggiornamento...' : 'Creazione...') : (editData ? 'Aggiorna Cliente' : 'Salva Cliente')}
+          {isSubmitting ? (editData?.id ? 'Aggiornamento...' : 'Creazione...') : (editData?.id ? 'Aggiorna Cliente' : 'Salva Cliente')}
         </Button>
       </div>
     </form>
