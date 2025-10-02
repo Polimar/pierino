@@ -133,23 +133,26 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
       
       // Update current field with the transcript
       if (finalTranscript) {
-        const currentField = FIELDS[currentFieldIndex];
-        let processedText = finalTranscript.trim();
-        
-        // Special processing for email field
-        if (currentField.key === 'email') {
-          // Remove spaces and convert "punto" to "."
-          processedText = processedText
-            .replace(/\s+/g, '') // Remove all spaces
-            .replace(/punto/gi, '.') // Convert "punto" to "."
-            .replace(/chiocciola/gi, '@') // Convert "chiocciola" to "@"
-            .replace(/at/gi, '@'); // Convert "at" to "@"
-        }
-        
-        setFormData(prev => ({
-          ...prev,
-          [currentField.key]: processedText
-        }));
+        // Get current field index from state at the time of the event
+        setFormData(prev => {
+          const currentField = FIELDS[currentFieldIndex];
+          let processedText = finalTranscript.trim();
+          
+          // Special processing for email field
+          if (currentField.key === 'email') {
+            // Remove spaces and convert "punto" to "."
+            processedText = processedText
+              .replace(/\s+/g, '') // Remove all spaces
+              .replace(/punto/gi, '.') // Convert "punto" to "."
+              .replace(/chiocciola/gi, '@') // Convert "chiocciola" to "@"
+              .replace(/at/gi, '@'); // Convert "at" to "@"
+          }
+          
+          return {
+            ...prev,
+            [currentField.key]: processedText
+          };
+        });
       }
     };
 
@@ -164,7 +167,7 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
       setIsRecording(false);
       stopFlashing();
       // Se la registrazione si interrompe, riavviala automaticamente
-      if (isRecordingStarted && currentFieldIndex < FIELDS.length) {
+      if (isRecordingStarted) {
         setTimeout(() => {
           if (recognitionRef.current) {
             recognitionRef.current.start();
@@ -179,7 +182,7 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
       }
       stopFlashing();
     };
-  }, [currentFieldIndex]);
+  }, []); // Rimosso currentFieldIndex dalle dipendenze
 
   const startFlashing = () => {
     if (flashingIntervalRef.current) {
@@ -258,7 +261,7 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
         },
         body: JSON.stringify(formData)
       });
@@ -273,9 +276,27 @@ export default function SequentialVoiceForm({ onSuccess, onDataExtracted }: Sequ
         // If there are validation errors, pass data to manual form for correction
         if (errorData.errors) {
           toast.warning('Errori di validazione rilevati. Passaggio al form di correzione...');
+          // Convert array of error messages to field-specific errors
+          const fieldErrors: Record<string, string> = {};
+          errorData.errors.forEach((error: string) => {
+            // Try to map error messages to field names
+            if (error.includes('firstName') || error.includes('Nome')) fieldErrors.firstName = error;
+            else if (error.includes('lastName') || error.includes('Cognome')) fieldErrors.lastName = error;
+            else if (error.includes('email') || error.includes('Email')) fieldErrors.email = error;
+            else if (error.includes('phone') || error.includes('Telefono')) fieldErrors.phone = error;
+            else if (error.includes('fiscalCode') || error.includes('Codice Fiscale')) fieldErrors.fiscalCode = error;
+            else if (error.includes('vatNumber') || error.includes('Partita IVA')) fieldErrors.vatNumber = error;
+            else if (error.includes('whatsappNumber') || error.includes('WhatsApp')) fieldErrors.whatsappNumber = error;
+            else if (error.includes('postalCode') || error.includes('CAP')) fieldErrors.postalCode = error;
+            else {
+              // Generic error for unmapped fields
+              fieldErrors.general = error;
+            }
+          });
+          
           onDataExtracted({
             ...formData,
-            _validationErrors: errorData.errors // Pass validation errors
+            _validationErrors: fieldErrors
           });
         } else {
           toast.error(errorData.message || 'Errore durante la creazione del cliente');

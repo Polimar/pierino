@@ -9,3 +9,4 @@ ALTER TABLE "users" ALTER COLUMN "role" TYPE "Role" USING ("role"::text::"Role")
 ALTER TABLE "users" ALTER COLUMN "role" SET DEFAULT 'OPERATOR';
 DROP TYPE "Role_old";
 
+
