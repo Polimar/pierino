@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import SequentialVoiceForm from './SequentialVoiceForm';
+import CompactVoiceForm from './CompactVoiceForm';
 
 interface NewClientModalProps {
   isOpen: boolean;
@@ -50,7 +50,7 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
     {
       id: 'voice',
       name: 'Inserimento Vocale',
-      description: 'Campi lampeggianti sequenziali con registrazione',
+        description: 'Interfaccia compatta con campi sempre modificabili',
       icon: Mic,
       color: 'bg-green-500',
       available: true,
@@ -83,7 +83,7 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
 
       case 'voice':
         return (
-          <SequentialVoiceForm 
+          <CompactVoiceForm 
             onSuccess={() => {
               setSelectedMode(null);
               onClose();
@@ -367,7 +367,30 @@ function ManualClientForm({ onSuccess, editData }: {
       } else {
         // Handle validation errors
         if (data.errors) {
-          setErrors(data.errors);
+          // Convert array of error messages to field-specific errors
+          const fieldErrors: Record<string, string> = {};
+          if (Array.isArray(data.errors)) {
+            data.errors.forEach((error: string) => {
+              // Try to map error messages to field names
+              if (error.includes('firstName') || error.includes('Nome')) fieldErrors.firstName = error;
+              else if (error.includes('lastName') || error.includes('Cognome')) fieldErrors.lastName = error;
+              else if (error.includes('email') || error.includes('Email')) fieldErrors.email = error;
+              else if (error.includes('phone') || error.includes('Telefono')) fieldErrors.phone = error;
+              else if (error.includes('fiscalCode') || error.includes('Codice Fiscale')) fieldErrors.fiscalCode = error;
+              else if (error.includes('vatNumber') || error.includes('Partita IVA')) fieldErrors.vatNumber = error;
+              else if (error.includes('whatsappNumber') || error.includes('WhatsApp')) fieldErrors.whatsappNumber = error;
+              else if (error.includes('postalCode') || error.includes('CAP')) fieldErrors.postalCode = error;
+              else {
+                // Generic error for unmapped fields
+                fieldErrors.general = error;
+              }
+            });
+          } else {
+            // If errors is already an object, use it directly
+            fieldErrors = data.errors;
+          }
+          
+          setErrors(fieldErrors);
           toast.warning('Correggi gli errori evidenziati nei campi');
         } else {
           toast.error(data.message || `Errore nell${editData ? 'aggiornamento' : 'a creazione'} del cliente`);
@@ -396,6 +419,16 @@ function ManualClientForm({ onSuccess, editData }: {
           {editData ? 'Modifica i dati del cliente' : 'Inserisci manualmente i dati del nuovo cliente'}
         </p>
       </div>
+
+      {/* Errori generali */}
+      {errors.general && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+          <div className="flex items-center">
+            <X className="h-4 w-4 text-red-500 mr-2" />
+            <p className="text-red-700 text-sm">{errors.general}</p>
+          </div>
+        </div>
+      )}
 
       {/* Sezione Anagrafica */}
       <Card>
