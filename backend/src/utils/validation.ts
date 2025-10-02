@@ -81,7 +81,7 @@ export const createClientSchema = Joi.object({
   province: Joi.string().length(2).uppercase().optional().allow(null, ''),
   postalCode: Joi.string().max(10).optional().allow(null, ''),
   country: Joi.string().length(2).uppercase().optional().default('IT'),
-  birthDate: Joi.date().optional().allow(null),
+  birthDate: Joi.date().optional().allow(null, ''),
   birthPlace: Joi.string().max(100).optional().allow(null, ''),
   notes: Joi.string().max(1000).optional().allow(null, ''),
 });
