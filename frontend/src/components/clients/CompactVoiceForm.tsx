@@ -281,17 +281,6 @@ export default function CompactVoiceForm({ onSuccess, onDataExtracted }: Compact
 
   return (
     <div className="h-[600px] flex flex-col">
-      {/* Header */}
-      <div className="text-center mb-4">
-        <div className="flex items-center justify-center mb-2">
-          <Mic className="h-6 w-6 text-green-500 mr-2" />
-          <h3 className="text-lg font-semibold">Inserimento Vocale Compatto</h3>
-        </div>
-        <p className="text-sm text-gray-600">
-          Compila i campi manualmente o usa la registrazione vocale
-        </p>
-      </div>
-
       {/* Main Content - Flex Layout */}
       <div className="flex-1 flex gap-4 min-h-0">
         {/* Left Side - Fields List */}

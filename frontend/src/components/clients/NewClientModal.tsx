@@ -50,7 +50,7 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
     {
       id: 'voice',
       name: 'Inserimento Vocale',
-        description: 'Interfaccia compatta con campi sempre modificabili',
+        description: 'Interfaccia con campi sempre modificabili',
       icon: Mic,
       color: 'bg-green-500',
       available: true,
