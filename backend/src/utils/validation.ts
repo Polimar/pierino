@@ -81,7 +81,9 @@ export const createClientSchema = Joi.object({
   province: Joi.string().length(2).uppercase().optional().allow(null, ''),
   postalCode: Joi.string().max(10).optional().allow(null, ''),
   country: Joi.string().length(2).uppercase().optional().default('IT'),
-  birthDate: Joi.date().optional().allow(null, ''),
+  birthDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).optional().allow(null, '').messages({
+    'string.pattern.base': 'Data di nascita deve essere nel formato YYYY-MM-DD',
+  }),
   birthPlace: Joi.string().max(100).optional().allow(null, ''),
   notes: Joi.string().max(1000).optional().allow(null, ''),
 });
@@ -138,6 +140,10 @@ export const clientQuerySchema = paginationSchema.keys({
   isActive: Joi.boolean().optional(),
   city: Joi.string().max(100).optional(),
   province: Joi.string().length(2).optional(),
+  country: Joi.string().max(2).optional(),
+  hasEmail: Joi.any().optional(),
+  hasPhone: Joi.any().optional(),
+  hasWhatsApp: Joi.any().optional(),
 });
 
 export const practiceQuerySchema = paginationSchema.keys({

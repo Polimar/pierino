@@ -117,11 +117,13 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center">
-            {editClient ? 'Modifica Cliente' : (selectedMode ? 'Nuovo Cliente' : 'Scegli Modalità di Inserimento')}
-          </DialogTitle>
-        </DialogHeader>
+                {selectedMode !== 'voice' && (
+                  <DialogHeader className="pb-2">
+                    <DialogTitle className="text-lg font-semibold text-center">
+                      {editClient ? 'Modifica Cliente' : (selectedMode ? 'Nuovo Cliente' : 'Scegli Modalità di Inserimento')}
+                    </DialogTitle>
+                  </DialogHeader>
+                )}
 
         {!selectedMode && !editClient ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
@@ -343,7 +345,11 @@ function ManualClientForm({ onSuccess, editData }: {
       if (formData.province) payload.province = formData.province.toUpperCase().trim();
       if (formData.postalCode) payload.postalCode = formData.postalCode.trim();
       if (formData.country) payload.country = formData.country.trim();
-      if (formData.birthDate) payload.birthDate = new Date(formData.birthDate).toISOString();
+      if (formData.birthDate) {
+        // Convert to YYYY-MM-DD format
+        const date = new Date(formData.birthDate);
+        payload.birthDate = date.toISOString().split('T')[0];
+      }
       if (formData.birthPlace) payload.birthPlace = formData.birthPlace.trim();
       if (formData.notes) payload.notes = formData.notes.trim();
 

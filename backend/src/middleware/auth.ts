@@ -24,10 +24,19 @@ export const authenticateToken = async (
   next: NextFunction
 ) => {
   try {
+    console.log('=== AUTH MIDDLEWARE DEBUG ===');
+    console.log('Request URL:', req.url);
+    console.log('Request method:', req.method);
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
+    
+    console.log('Auth header:', authHeader);
+    console.log('Token extracted:', token ? 'PRESENT' : 'MISSING');
 
     if (!token) {
+      console.log('ERROR: No token provided');
       return res.status(401).json({
         success: false,
         message: 'Token di accesso richiesto',
@@ -37,9 +46,12 @@ export const authenticateToken = async (
 
     // JWT validation (se configurato)
     try {
+      console.log('Attempting JWT verification...');
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'demo-secret') as TokenPayload;
+      console.log('JWT decoded successfully:', JSON.stringify(decoded, null, 2));
 
       if (decoded.type !== 'access') {
+        console.log('ERROR: Token type is not access:', decoded.type);
         return res.status(401).json({
           success: false,
           message: 'Token non valido',
@@ -51,9 +63,12 @@ export const authenticateToken = async (
         email: decoded.email,
         role: decoded.role,
       };
-
+      
+      console.log('User set in request:', JSON.stringify(req.user, null, 2));
+      console.log('Calling next()...');
       next();
     } catch (jwtError) {
+      console.log('JWT verification failed:', jwtError);
       return res.status(401).json({
         success: false,
         message: 'Token non valido',

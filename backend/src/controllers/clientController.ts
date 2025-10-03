@@ -13,6 +13,9 @@ const logger = createLogger('ClientController');
 
 export const getClients = async (req: AuthRequest, res: Response) => {
   try {
+    console.log('=== GET CLIENTS DEBUG ===');
+    console.log('Query params:', JSON.stringify(req.query, null, 2));
+    
     const { error, value } = validateClientQuery(req.query);
     
     if (error) {
@@ -32,6 +35,10 @@ export const getClients = async (req: AuthRequest, res: Response) => {
       isActive,
       city,
       province,
+      country,
+      hasEmail,
+      hasPhone,
+      hasWhatsApp,
     } = value;
 
     const skip = (page - 1) * limit;
@@ -49,6 +56,37 @@ export const getClients = async (req: AuthRequest, res: Response) => {
     
     if (province) {
       where.province = province.toUpperCase();
+    }
+    
+    if (country) {
+      where.country = country.toUpperCase();
+    }
+    
+    if (hasEmail !== undefined) {
+      const hasEmailBool = hasEmail === true || hasEmail === 'true';
+      if (hasEmailBool) {
+        where.email = { not: null };
+      } else {
+        where.email = null;
+      }
+    }
+    
+    if (hasPhone !== undefined) {
+      const hasPhoneBool = hasPhone === true || hasPhone === 'true';
+      if (hasPhoneBool) {
+        where.phone = { not: null };
+      } else {
+        where.phone = null;
+      }
+    }
+    
+    if (hasWhatsApp !== undefined) {
+      const hasWhatsAppBool = hasWhatsApp === true || hasWhatsApp === 'true';
+      if (hasWhatsAppBool) {
+        where.whatsappNumber = { not: null };
+      } else {
+        where.whatsappNumber = null;
+      }
     }
     
     if (search) {
@@ -217,15 +255,32 @@ export const getClient = async (req: AuthRequest, res: Response) => {
 
 export const createClient = async (req: AuthRequest, res: Response) => {
   try {
+    console.log('=== CREATE CLIENT CONTROLLER REACHED ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('User ID:', req.user?.id);
+    console.log('User role:', req.user?.role);
+    
+    logger.info('=== CREATE CLIENT DEBUG ===');
+    logger.info('Request body:', JSON.stringify(req.body, null, 2));
+    logger.info('User ID:', req.user?.id);
+    logger.info('User role:', req.user?.role);
+    
+    console.log('Starting validation...');
     const { error, value } = validateCreateClient(req.body);
     
     if (error) {
+      console.log('Validation error:', error.details);
+      logger.error('Validation error:', error.details);
       return res.status(400).json({
         success: false,
         message: 'Dati non validi',
         errors: error.details.map(detail => detail.message),
       });
     }
+    
+    console.log('Validation passed, data:', JSON.stringify(value, null, 2));
+    
+    logger.info('Validated data:', JSON.stringify(value, null, 2));
 
     // Check for existing client with same fiscal code or VAT number
     if (value.fiscalCode || value.vatNumber) {
@@ -260,29 +315,97 @@ export const createClient = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const client = await prisma.client.create({
-      data: value,
-      include: {
-        _count: {
-          select: {
-            practices: true,
-            documents: true,
-            whatsappChats: true,
-            emails: true,
-          },
-        },
-      },
-    });
+          console.log('Attempting to create client in database...');
+          logger.info('Attempting to create client in database...');
+          
+          // Clean up empty strings and filter out empty fields
+          const cleanedData: any = {
+            firstName: value.firstName,
+            lastName: value.lastName,
+            email: value.email,
+            phone: value.phone,
+            country: value.country,
+          };
+          
+          // Only include non-empty optional fields
+          if (value.whatsappNumber && value.whatsappNumber.trim() !== '') {
+            cleanedData.whatsappNumber = value.whatsappNumber;
+          }
+          if (value.fiscalCode && value.fiscalCode.trim() !== '') {
+            cleanedData.fiscalCode = value.fiscalCode;
+          }
+          if (value.vatNumber && value.vatNumber.trim() !== '') {
+            cleanedData.vatNumber = value.vatNumber;
+          }
+          if (value.address && value.address.trim() !== '') {
+            cleanedData.address = value.address;
+          }
+          if (value.city && value.city.trim() !== '') {
+            cleanedData.city = value.city;
+          }
+          if (value.province && value.province.trim() !== '') {
+            cleanedData.province = value.province;
+          }
+          if (value.postalCode && value.postalCode.trim() !== '') {
+            cleanedData.postalCode = value.postalCode;
+          }
+          if (value.birthDate && value.birthDate.trim() !== '') {
+            // Log the incoming birthDate format
+            console.log('Incoming birthDate:', value.birthDate, 'Type:', typeof value.birthDate);
+            
+            // Handle both YYYY-MM-DD and ISO formats
+            let dateValue;
+            if (value.birthDate.includes('T')) {
+              // Already ISO format
+              dateValue = new Date(value.birthDate).toISOString();
+            } else {
+              // YYYY-MM-DD format, convert to ISO
+              dateValue = new Date(value.birthDate + 'T00:00:00.000Z').toISOString();
+            }
+            console.log('Converted birthDate to:', dateValue);
+            cleanedData.birthDate = dateValue;
+          }
+          if (value.birthPlace && value.birthPlace.trim() !== '') {
+            cleanedData.birthPlace = value.birthPlace;
+          }
+          if (value.notes && value.notes.trim() !== '') {
+            cleanedData.notes = value.notes;
+          }
+          
+          try {
+            const client = await prisma.client.create({
+              data: cleanedData,
+              include: {
+                _count: {
+                  select: {
+                    practices: true,
+                    documents: true,
+                    whatsappChats: true,
+                    emails: true,
+                  },
+                },
+              },
+            });
 
-    logger.info(`Client created: ${client.firstName} ${client.lastName} (${client.email})`);
+      console.log(`Client created successfully: ${client.firstName} ${client.lastName} (${client.email})`);
+      logger.info(`Client created successfully: ${client.firstName} ${client.lastName} (${client.email})`);
 
-    res.status(201).json({
-      success: true,
-      message: 'Cliente creato con successo',
-      data: { client },
-    });
+      res.status(201).json({
+        success: true,
+        message: 'Cliente creato con successo',
+        data: { client },
+      });
+    } catch (dbError) {
+      console.log('Database error:', dbError);
+      logger.error('Database error:', dbError);
+      throw dbError;
+    }
   } catch (error) {
-    logger.error('Create client error:', error);
+    logger.error('=== CREATE CLIENT ERROR ===');
+    logger.error('Error type:', typeof error);
+    logger.error('Error message:', error.message);
+    logger.error('Error stack:', error.stack);
+    logger.error('Full error object:', JSON.stringify(error, null, 2));
     res.status(500).json({
       success: false,
       message: 'Errore interno del server',
@@ -365,9 +488,51 @@ export const updateClient = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Clean up empty strings and filter out empty fields
+    const cleanedData: any = {
+      firstName: value.firstName,
+      lastName: value.lastName,
+      email: value.email,
+      phone: value.phone,
+      country: value.country,
+    };
+    
+    // Only include non-empty optional fields
+    if (value.whatsappNumber && value.whatsappNumber.trim() !== '') {
+      cleanedData.whatsappNumber = value.whatsappNumber;
+    }
+    if (value.fiscalCode && value.fiscalCode.trim() !== '') {
+      cleanedData.fiscalCode = value.fiscalCode;
+    }
+    if (value.vatNumber && value.vatNumber.trim() !== '') {
+      cleanedData.vatNumber = value.vatNumber;
+    }
+    if (value.address && value.address.trim() !== '') {
+      cleanedData.address = value.address;
+    }
+    if (value.city && value.city.trim() !== '') {
+      cleanedData.city = value.city;
+    }
+    if (value.province && value.province.trim() !== '') {
+      cleanedData.province = value.province;
+    }
+    if (value.postalCode && value.postalCode.trim() !== '') {
+      cleanedData.postalCode = value.postalCode;
+    }
+    if (value.birthDate && value.birthDate.trim() !== '') {
+      // Convert YYYY-MM-DD to ISO string for Prisma
+      cleanedData.birthDate = new Date(value.birthDate).toISOString();
+    }
+    if (value.birthPlace && value.birthPlace.trim() !== '') {
+      cleanedData.birthPlace = value.birthPlace;
+    }
+    if (value.notes && value.notes.trim() !== '') {
+      cleanedData.notes = value.notes;
+    }
+    
     const client = await prisma.client.update({
       where: { id: req.params.id },
-      data: value,
+      data: cleanedData,
       include: {
         _count: {
           select: {

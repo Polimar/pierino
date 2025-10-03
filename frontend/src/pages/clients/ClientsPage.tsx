@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Filter, MoreHorizontal, Phone, Mail, MessageSquare } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, Phone, Mail, MessageSquare, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { useClientStore } from '@/store/clientStore';
 import { formatDate } from '@/utils/date';
 import { toast } from 'sonner';
@@ -12,12 +15,22 @@ import NewClientModal from '@/components/clients/NewClientModal';
 export default function ClientsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    city: '',
+    province: '',
+    country: '',
+    hasEmail: false,
+    hasPhone: false,
+    hasWhatsApp: false
+  });
   const { 
     clients, 
     isLoading, 
     error, 
     pagination, 
     fetchClients, 
+    deleteClient,
     clearError 
   } = useClientStore();
 
@@ -36,12 +49,46 @@ export default function ClientsPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Filter out empty values
+    const cleanFilters = Object.fromEntries(
+      Object.entries(filters).filter(([_, value]) => 
+        value !== '' && value !== false && value !== null && value !== undefined
+      )
+    );
+    
+    fetchClients({ 
+      page: 1, 
+      limit: 10, 
+      search: searchTerm,
+      ...cleanFilters
+    }).catch(() => {
+      toast.error('Errore nella ricerca');
+    });
+  };
+
+  const handleFilterChange = (key: string, value: any) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      city: '',
+      province: '',
+      country: '',
+      hasEmail: false,
+      hasPhone: false,
+      hasWhatsApp: false
+    });
     fetchClients({ 
       page: 1, 
       limit: 10, 
       search: searchTerm 
     }).catch(() => {
-      toast.error('Errore nella ricerca');
+      toast.error('Errore nel caricamento');
     });
   };
 
@@ -60,6 +107,23 @@ export default function ClientsPage() {
     fetchClients({ page: 1, limit: 10 }).catch(() => {
       toast.error('Errore nel refresh clienti');
     });
+  };
+
+  const handleDeleteClient = async (clientId: string, clientName: string) => {
+    if (window.confirm(`Sei sicuro di voler eliminare il cliente "${clientName}"?`)) {
+      try {
+        await deleteClient(clientId);
+        toast.success('Cliente eliminato con successo');
+        // Refresh the list
+        fetchClients({ 
+          page: pagination?.page || 1, 
+          limit: 10, 
+          search: searchTerm 
+        });
+      } catch (error) {
+        toast.error('Errore nell\'eliminazione del cliente');
+      }
+    }
   };
 
   if (isLoading && clients.length === 0) {
@@ -113,13 +177,114 @@ export default function ClientsPage() {
             <Button type="submit" variant="outline">
               <Search className="h-4 w-4" />
             </Button>
-            <Button variant="outline">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowFilters(!showFilters)}
+            >
               <Filter className="h-4 w-4 mr-2" />
               Filtri
             </Button>
           </form>
         </CardContent>
       </Card>
+
+      {/* Filters Panel */}
+      {showFilters && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="city-filter">Città</Label>
+                <Input
+                  id="city-filter"
+                  placeholder="Filtra per città"
+                  value={filters.city}
+                  onChange={(e) => handleFilterChange('city', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="province-filter">Provincia</Label>
+                <Input
+                  id="province-filter"
+                  placeholder="Filtra per provincia"
+                  value={filters.province}
+                  onChange={(e) => handleFilterChange('province', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="country-filter">Paese</Label>
+                <Input
+                  id="country-filter"
+                  placeholder="Filtra per paese"
+                  value={filters.country}
+                  onChange={(e) => handleFilterChange('country', e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <div className="mt-4">
+              <Label className="text-sm font-medium mb-3 block">Filtri Avanzati</Label>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="has-email"
+                    checked={filters.hasEmail}
+                    onCheckedChange={(checked) => handleFilterChange('hasEmail', checked)}
+                  />
+                  <Label htmlFor="has-email" className="text-sm">
+                    Ha email
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="has-phone"
+                    checked={filters.hasPhone}
+                    onCheckedChange={(checked) => handleFilterChange('hasPhone', checked)}
+                  />
+                  <Label htmlFor="has-phone" className="text-sm">
+                    Ha telefono
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="has-whatsapp"
+                    checked={filters.hasWhatsApp}
+                    onCheckedChange={(checked) => handleFilterChange('hasWhatsApp', checked)}
+                  />
+                  <Label htmlFor="has-whatsapp" className="text-sm">
+                    Ha WhatsApp
+                  </Label>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-2 mt-4">
+              <Button variant="outline" onClick={clearFilters}>
+                Cancella Filtri
+              </Button>
+              <Button onClick={() => {
+                // Filter out empty values
+                const cleanFilters = Object.fromEntries(
+                  Object.entries(filters).filter(([_, value]) => 
+                    value !== '' && value !== false && value !== null && value !== undefined
+                  )
+                );
+                
+                fetchClients({ 
+                  page: 1, 
+                  limit: 10, 
+                  search: searchTerm,
+                  ...cleanFilters
+                }).catch(() => {
+                  toast.error('Errore nell\'applicazione dei filtri');
+                });
+              }}>
+                Applica Filtri
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Clients List */}
       <Card>
@@ -206,9 +371,22 @@ export default function ClientsPage() {
                             </div>
                           )}
                         </div>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteClient(client.id, `${client.firstName} ${client.lastName}`)}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Elimina
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                     {client.address && (
