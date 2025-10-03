@@ -3,9 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 export default function Header() {
   const { logout } = useAuthStore();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
@@ -62,6 +64,7 @@ export default function Header() {
                 variant="ghost"
                 size="sm"
                 className="flex items-center gap-x-2"
+                onClick={() => navigate('/profile')}
               >
                 <User className="h-5 w-5" />
                 <span className="hidden lg:flex lg:items-center">

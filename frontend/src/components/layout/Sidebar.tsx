@@ -93,38 +93,46 @@ export default function Sidebar() {
             </ul>
           </li>
 
-          <li className="mt-auto">
-            <ul className="-mx-2 space-y-1">
-              {secondaryNavigation.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <li key={item.name}>
-                    <Link
-                      to={item.href}
-                      className={cn(
-                        'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors',
-                        isActive
-                          ? 'bg-blue-50 text-blue-600'
-                          : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                      )}
-                      onClick={() => setMobileMenuOpen(false)} // Close menu on mobile when link is clicked
-                    >
-                      <item.icon
+          {/* Show administration section only for ADMIN users */}
+          {user?.role === 'ADMIN' && (
+            <li className="mt-auto">
+              <div className="text-xs font-semibold leading-6 text-gray-400">
+                Amministrazione
+              </div>
+              <ul className="-mx-2 mt-2 space-y-1">
+                {secondaryNavigation.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <li key={item.name}>
+                      <Link
+                        to={item.href}
                         className={cn(
-                          'h-6 w-6 shrink-0',
-                          isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'
+                          'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors',
+                          isActive
+                            ? 'bg-blue-50 text-blue-600'
+                            : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
                         )}
-                        aria-hidden="true"
-                      />
-                      {item.name}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+                        onClick={() => setMobileMenuOpen(false)} // Close menu on mobile when link is clicked
+                      >
+                        <item.icon
+                          className={cn(
+                            'h-6 w-6 shrink-0',
+                            isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'
+                          )}
+                          aria-hidden="true"
+                        />
+                        {item.name}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          )}
 
-            {/* User info */}
-            <div className="mt-6 p-3 bg-gray-50 rounded-lg">
+          {/* User info */}
+          <li className="mt-auto">
+            <div className="p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
@@ -142,8 +150,7 @@ export default function Sidebar() {
                   </p>
                   <p className="text-xs text-gray-500 truncate">
                     {user?.role === 'ADMIN' && 'Amministratore'}
-                    {user?.role === 'GEOMETRA' && 'Geometra'}
-                    {user?.role === 'SECRETARY' && 'Segreteria'}
+                    {user?.role === 'OPERATOR' && 'Operatore'}
                   </p>
                 </div>
               </div>

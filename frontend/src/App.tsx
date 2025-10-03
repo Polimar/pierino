@@ -16,6 +16,7 @@ import SettingsPage from '@/pages/settings/SettingsPage';
 import WhatsAppPage from '@/pages/whatsapp/WhatsAppPage';
 import EmailPage from '@/pages/email/EmailPage';
 import AIAssistantProPage from '@/pages/ai-assistant-pro/AIAssistantProPage';
+import ProfilePage from '@/pages/profile/ProfilePage';
 
 // Layout
 import AppLayout from '@/components/layout/AppLayout';
@@ -113,6 +114,7 @@ function App() {
               <Route path="calendar" element={<div>Calendario - Coming Soon</div>} />
               <Route path="documents" element={<div>Documenti - Coming Soon</div>} />
               <Route path="ai-assistant-pro" element={<AIAssistantProPage />} />
+              <Route path="profile" element={<ProfilePage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>

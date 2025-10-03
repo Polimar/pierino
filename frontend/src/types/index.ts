@@ -2,7 +2,7 @@
 export interface User {
   id: string;
   email: string;
-  role: 'ADMIN' | 'GEOMETRA' | 'SECRETARY';
+  role: 'ADMIN' | 'OPERATOR';
   firstName?: string;
   lastName?: string;
   isActive: boolean;
