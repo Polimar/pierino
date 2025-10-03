@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mic, PenTool, Bot, X, User, Phone, MapPin, FileText, ChevronDown, ChevronUp, Building2, Calendar } from 'lucide-react';
+import { Mic, PenTool, X, User, Phone, MapPin, FileText, ChevronDown, ChevronUp, Building2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
@@ -45,32 +45,18 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
       description: 'Compila il form con i dati del cliente',
       icon: PenTool,
       color: 'bg-blue-500',
-      available: true,
     },
     {
       id: 'voice',
       name: 'Inserimento Vocale',
-        description: 'Interfaccia con campi sempre modificabili',
+      description: 'Interfaccia con campi sempre modificabili',
       icon: Mic,
       color: 'bg-green-500',
-      available: true,
-    },
-    {
-      id: 'ai',
-      name: 'Intelligenza Artificiale',
-      description: 'Invia messaggi WhatsApp, email o testo',
-      icon: Bot,
-      color: 'bg-purple-500',
-      available: false,
-      badge: 'In sviluppo',
     },
   ];
 
   const handleModeSelect = (modeId: string) => {
-    const mode = modes.find(m => m.id === modeId);
-    if (mode?.available) {
       setSelectedMode(modeId);
-    }
   };
 
   const renderModeContent = () => {
@@ -95,19 +81,6 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
           />
         );
 
-      case 'ai':
-        return (
-          <div className="text-center py-8">
-            <Bot className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Modalità AI</h3>
-            <p className="text-gray-600 mb-4">
-              Invia messaggi WhatsApp, email o testo per estrarre automaticamente i dati del cliente.
-            </p>
-            <Badge variant="outline" className="text-orange-600 border-orange-600">
-              In sviluppo
-            </Badge>
-          </div>
-        );
 
       default:
         return null;
@@ -121,20 +94,18 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
                   <DialogHeader className="pb-2">
                     <DialogTitle className="text-lg font-semibold text-center">
                       {editClient ? 'Modifica Cliente' : (selectedMode ? 'Nuovo Cliente' : 'Scegli Modalità di Inserimento')}
-                    </DialogTitle>
-                  </DialogHeader>
+          </DialogTitle>
+        </DialogHeader>
                 )}
 
         {!selectedMode && !editClient ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
             {modes.map((mode) => {
               const Icon = mode.icon;
               return (
                 <Card
                   key={mode.id}
-                  className={`cursor-pointer transition-all hover:shadow-lg ${
-                    mode.available ? 'hover:border-blue-500' : 'opacity-60'
-                  }`}
+                  className="cursor-pointer transition-all hover:shadow-lg hover:border-blue-500"
                   onClick={() => handleModeSelect(mode.id)}
                 >
                   <CardContent className="p-6 text-center">
@@ -143,16 +114,6 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
                     </div>
                     <h3 className="text-lg font-semibold mb-2">{mode.name}</h3>
                     <p className="text-gray-600 text-sm mb-4">{mode.description}</p>
-                    {mode.badge && (
-                      <Badge variant="outline" className="text-orange-600 border-orange-600">
-                        {mode.badge}
-                      </Badge>
-                    )}
-                    {!mode.available && (
-                      <div className="mt-4 text-xs text-gray-500">
-                        Non disponibile
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               );
@@ -165,14 +126,14 @@ export default function NewClientModal({ isOpen, onClose, editClient }: NewClien
                 {modes.find(m => m.id === selectedMode)?.name}
               </h3>
               {!editClient && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedMode(null)}
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Cambia modalità
-                </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedMode(null)}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cambia modalità
+              </Button>
               )}
             </div>
 
@@ -451,8 +412,8 @@ function ManualClientForm({ onSuccess, editData }: {
         </div>
         {expandedSections.anagrafica && (
           <CardContent className="p-4 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
                 <Label htmlFor="firstName">Nome *</Label>
                 <Input
                   id="firstName"
@@ -462,9 +423,9 @@ function ManualClientForm({ onSuccess, editData }: {
                   className={errors.firstName ? 'border-red-500' : ''}
                 />
                 {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
-              </div>
+        </div>
 
-              <div>
+        <div>
                 <Label htmlFor="lastName">Cognome *</Label>
                 <Input
                   id="lastName"
@@ -474,27 +435,27 @@ function ManualClientForm({ onSuccess, editData }: {
                   className={errors.lastName ? 'border-red-500' : ''}
                 />
                 {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
-              </div>
+        </div>
 
-              <div>
+        <div>
                 <Label htmlFor="birthDate">Data di Nascita</Label>
                 <Input
                   id="birthDate"
                   type="date"
                   value={formData.birthDate}
                   onChange={(e) => handleChange('birthDate', e.target.value)}
-                />
-              </div>
+          />
+        </div>
 
-              <div>
+        <div>
                 <Label htmlFor="birthPlace">Luogo di Nascita</Label>
                 <Input
                   id="birthPlace"
                   value={formData.birthPlace}
                   onChange={(e) => handleChange('birthPlace', e.target.value)}
                   placeholder="Roma (RM)"
-                />
-              </div>
+          />
+        </div>
             </div>
           </CardContent>
         )}
@@ -541,7 +502,7 @@ function ManualClientForm({ onSuccess, editData }: {
                 {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
               </div>
 
-              <div className="md:col-span-2">
+        <div className="md:col-span-2">
                 <Label htmlFor="whatsappNumber">Numero WhatsApp</Label>
                 <Input
                   id="whatsappNumber"
@@ -574,7 +535,7 @@ function ManualClientForm({ onSuccess, editData }: {
         {expandedSections.fiscale && (
           <CardContent className="p-4 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+        <div>
                 <Label htmlFor="fiscalCode">Codice Fiscale</Label>
                 <Input
                   id="fiscalCode"
@@ -586,9 +547,9 @@ function ManualClientForm({ onSuccess, editData }: {
                 />
                 {errors.fiscalCode && <p className="text-xs text-red-500 mt-1">{errors.fiscalCode}</p>}
                 <p className="text-xs text-gray-500 mt-1">16 caratteri alfanumerici</p>
-              </div>
+        </div>
 
-              <div>
+        <div>
                 <Label htmlFor="vatNumber">Partita IVA</Label>
                 <Input
                   id="vatNumber"
@@ -669,8 +630,8 @@ function ManualClientForm({ onSuccess, editData }: {
                   className={errors.postalCode ? 'border-red-500' : ''}
                 />
                 {errors.postalCode && <p className="text-xs text-red-500 mt-1">{errors.postalCode}</p>}
-              </div>
-            </div>
+        </div>
+      </div>
 
             <div>
               <Label htmlFor="country">Paese</Label>

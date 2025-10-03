@@ -211,49 +211,8 @@ router.get('/test', async (req, res) => {
   }
 });
 
-// Extract client data from voice transcript or text
-router.post('/extract-client-data', authenticateToken, async (req, res) => {
-  try {
-    const { text } = req.body;
-
-    if (!text || typeof text !== 'string') {
-      return res.status(400).json({
-        success: false,
-        message: 'Testo richiesto'
-      });
-    }
-
-    const extractionPrompt = `Sei un assistente AI specializzato nell'estrazione di dati anagrafici da testo libero o trascrizioni vocali.
-
-ISTRUZIONI:
-1. Analizza il seguente testo e estrai TUTTI i dati anagrafici presenti
-2. Restituisci SOLO un oggetto JSON valido senza commenti o testo aggiuntivo
-3. Se un dato non è presente, usa null
-4. Normalizza i numeri di telefono con formato +39
-5. Converti il codice fiscale in MAIUSCOLO
-6. Normalizza le province in sigla a 2 lettere MAIUSCOLE (es. Milano -> MI)
-
-FORMATO JSON RICHIESTO:
-{
-  "firstName": string | null,
-  "lastName": string | null,
-  "email": string | null,
-  "phone": string | null,
-  "whatsappNumber": string | null,
-  "fiscalCode": string | null,
-  "vatNumber": string | null,
-  "address": string | null,
-  "city": string | null,
-  "province": string | null,
-  "postalCode": string | null,
-  "country": string | null,
-  "birthDate": string (formato YYYY-MM-DD) | null,
-  "birthPlace": string | null,
-  "notes": string | null
-}
-
-TESTO DA ANALIZZARE:
-${text}
+// AI endpoint rimosso dall'inserimento clienti
+// Ora disponibili solo: Inserimento Manuale e Inserimento Vocale
 
 RISPOSTA (solo JSON):`;
 
@@ -261,10 +220,38 @@ RISPOSTA (solo JSON):`;
       { role: 'user' as const, content: extractionPrompt }
     ];
 
+    // Carica i timeout dalle impostazioni centralizzate
+    const aiTimeouts = await getAITimeouts();
+    const serviceTimeout = aiTimeouts.documents || 90000; // Usa timeout per documents o fallback
+    
+    console.log('=== AI EXTRACT CLIENT DATA DEBUG ===');
+    console.log('Text length:', text.length);
+    console.log('AI Timeouts loaded:', aiTimeouts);
+    console.log('Service timeout:', serviceTimeout);
+    
+    // Verifica che il modello sia disponibile, altrimenti usa fallback
+    let validModel = 'phi3:mini';
+    try {
+      const modelsResponse = await axios.get('http://ollama:11434/api/tags');
+      const availableModels = modelsResponse.data.models?.map((m: any) => m.name) || [];
+      
+      if (!availableModels.includes('phi3:mini')) {
+        console.warn('Model phi3:mini not found, using fallback mistral:7b');
+        validModel = 'mistral:7b';
+      }
+    } catch (modelCheckError) {
+      console.warn('Could not check available models, using fallback mistral:7b');
+      validModel = 'mistral:7b';
+    }
+    
+    console.log('Selected model:', validModel);
+    console.log('Starting AI extraction...');
+
     const response = await aiService.chatWithConfig(messages, {
-      model: 'phi3:mini', // Modello più veloce
+      model: validModel,
       temperature: 0.3, // Bassa temperatura per risposte più precise
-      timeout: 90000 // Aumento timeout a 90 secondi
+      timeout: serviceTimeout,
+      ollamaEndpoint: 'http://ollama:11434'
     });
 
     // Parse JSON response
